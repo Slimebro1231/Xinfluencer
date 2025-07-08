@@ -67,8 +67,9 @@ Xinfluencer AI Pipeline
 - Python 3.9+
 - 8GB+ RAM (for model loading)
 - Optional: CUDA for GPU acceleration
+- **For H200 Deployment**: NVIDIA H200 GPU with 80GB+ VRAM
 
-### Installation
+### Local Development Installation
 ```bash
 # Clone repository
 git clone <repository-url>
@@ -80,6 +81,30 @@ pip install -r requirements.txt
 # Run the pipeline
 cd src
 python main.py
+```
+
+### H200 GPU Deployment
+```bash
+# 1. Run comprehensive H200 tests
+./scripts/run_h200_tests.sh
+
+# 2. If tests pass, deploy to H200
+./scripts/deploy_h200.sh
+
+# 3. Start the AI agent
+./start_xinfluencer.sh
+```
+
+### H200 Performance Testing
+```bash
+# Quick H200 access test
+python3 scripts/test_h200_access.py
+
+# Twitter API connectivity test
+python3 scripts/test_twitter_api.py
+
+# Full performance benchmark
+python3 tests/test_h200_performance.py
 ```
 
 ### Expected Output
@@ -118,11 +143,12 @@ The system uses Pydantic for configuration management. Key settings:
 ## 📊 Next Steps & Improvements
 
 ### Immediate Priorities
-1. **Twitter API Integration**: Replace mock data with real Twitter API v2
-2. **Qdrant Deployment**: Set up actual Qdrant vector database
-3. **Model Upgrades**: Integrate larger, more capable language models
-4. **Human Review Interface**: Build web interface for human feedback
-5. **Monitoring Dashboard**: Implement Prometheus/Grafana monitoring
+1. **✅ Twitter API Integration**: Real Twitter API v2 integration ready for testing
+2. **H200 Deployment**: Full deployment and performance optimization on H200 GPU
+3. **Qdrant Deployment**: Set up actual Qdrant vector database with GPU acceleration
+4. **Model Upgrades**: Integrate larger, more capable language models (Mistral-7B, Llama-3)
+5. **Human Review Interface**: Build web interface for human feedback
+6. **Monitoring Dashboard**: Implement Prometheus/Grafana monitoring
 
 ### Advanced Features
 1. **PPO Training**: Implement reinforcement learning from human feedback
@@ -139,6 +165,7 @@ The system uses Pydantic for configuration management. Key settings:
 
 ## 🧪 Testing
 
+### Local Testing
 ```bash
 # Run basic tests
 pytest tests/
@@ -148,6 +175,24 @@ cd src
 python -c "from data.ingest import fetch_tweets; print(len(fetch_tweets()))"
 python -c "from model.generate import TextGenerator; g = TextGenerator(); print(g.generate_response('Hello'))"
 ```
+
+### H200 GPU Testing
+```bash
+# Comprehensive test suite (recommended)
+./scripts/run_h200_tests.sh
+
+# Individual tests
+python3 scripts/test_h200_access.py      # GPU connectivity & performance
+python3 scripts/test_twitter_api.py      # Twitter API access
+python3 tests/test_h200_performance.py   # Full performance benchmark
+```
+
+### Test Results
+After running tests, check for generated files:
+- `h200_access_test_*.json` - GPU performance metrics
+- `twitter_api_test_*.json` - API connectivity results  
+- `h200_performance_results_*.json` - Comprehensive benchmarks
+- `h200_performance_summary_*.txt` - Human-readable summary
 
 ## 📁 Project Structure
 

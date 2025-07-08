@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-echo "🚀 H200 Comprehensive Test Suite for Xinfluencer AI"
+echo "H200 Comprehensive Test Suite for Xinfluencer AI"
 echo "=================================================="
 
 # Colors for output
@@ -153,7 +153,7 @@ generate_summary() {
     print_status "Generating test summary..."
     
     echo ""
-    echo "📋 Test Summary Report"
+    echo "Test Summary Report"
     echo "====================="
     echo "Timestamp: $(date)"
     echo ""
@@ -161,27 +161,27 @@ generate_summary() {
     # Check for result files
     echo "Generated Files:"
     if ls h200_access_test_*.json 1> /dev/null 2>&1; then
-        echo "✅ H200 access test results"
+        echo "SUCCESS: H200 access test results"
     else
-        echo "❌ H200 access test results not found"
+        echo "ERROR: H200 access test results not found"
     fi
     
     if ls twitter_api_test_*.json 1> /dev/null 2>&1; then
-        echo "✅ Twitter API test results"
+        echo "SUCCESS: Twitter API test results"
     else
-        echo "❌ Twitter API test results not found"
+        echo "ERROR: Twitter API test results not found"
     fi
     
     if ls h200_performance_results_*.json 1> /dev/null 2>&1; then
-        echo "✅ Performance test results"
+        echo "SUCCESS: Performance test results"
     else
-        echo "❌ Performance test results not found"
+        echo "ERROR: Performance test results not found"
     fi
     
     if ls h200_performance_summary_*.txt 1> /dev/null 2>&1; then
-        echo "✅ Performance summary"
+        echo "SUCCESS: Performance summary"
     else
-        echo "❌ Performance summary not found"
+        echo "ERROR: Performance summary not found"
     fi
     
     echo ""
@@ -200,7 +200,7 @@ main() {
     install_dependencies
     
     echo ""
-    echo "🧪 Running Test Suite..."
+    echo "Running Test Suite..."
     echo "========================"
     
     # Run tests
@@ -241,11 +241,11 @@ main() {
     
     if [ "$failures" -eq 0 ]; then
         echo ""
-        print_success "🎉 All tests passed! H200 is ready for deployment."
+        print_success "All tests passed! H200 is ready for deployment."
         generate_summary
     else
         echo ""
-        print_warning "⚠️  $failures test(s) failed. Please review the results above."
+        print_warning "$failures test(s) failed. Please review the results above."
         print_warning "Check the error messages and fix any issues before deployment."
     fi
 }

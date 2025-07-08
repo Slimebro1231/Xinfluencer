@@ -18,7 +18,7 @@ from config import Config
 
 def test_twitter_api_access():
     """Test Twitter API access with credentials from .env"""
-    print("🐦 Testing Twitter API Access...")
+    print("Testing Twitter API Access...")
     print("=" * 50)
     
     try:
@@ -41,7 +41,7 @@ def test_twitter_api_access():
         # Test API connection
         print("Testing API connection...")
         user = api.verify_credentials()
-        print(f"✅ Connected as: @{user.screen_name}")
+        print(f"SUCCESS: Connected as @{user.screen_name}")
         print(f"   User ID: {user.id}")
         print(f"   Followers: {user.followers_count}")
         
@@ -68,15 +68,15 @@ def test_twitter_api_access():
         return True, api
         
     except tweepy.TweepError as e:
-        print(f"❌ Twitter API Error: {e}")
+        print(f"ERROR: Twitter API Error: {e}")
         return False, None
     except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+        print(f"ERROR: Unexpected error: {e}")
         return False, None
 
 def test_user_lookup(api):
     """Test looking up specific users"""
-    print("\n👥 Testing User Lookup...")
+    print("\nTesting User Lookup...")
     print("=" * 50)
     
     # Test with some known crypto influencers
@@ -107,20 +107,20 @@ def test_user_lookup(api):
             
             results[username] = user_info
             
-            print(f"  ✅ Found: {user.name} (@{user.screen_name})")
+            print(f"  SUCCESS: Found {user.name} (@{user.screen_name})")
             print(f"     Followers: {user.followers_count:,}")
             print(f"     Tweets: {user.statuses_count:,}")
             print(f"     Verified: {user.verified}")
             
         except tweepy.TweepError as e:
-            print(f"  ❌ Error looking up @{username}: {e}")
+            print(f"  ERROR: Error looking up @{username}: {e}")
             results[username] = {"error": str(e)}
     
     return results
 
 def test_timeline_fetch(api, max_tweets=5):
     """Test fetching user timelines"""
-    print(f"\n📱 Testing Timeline Fetch (max {max_tweets} tweets)...")
+    print(f"\nTesting Timeline Fetch (max {max_tweets} tweets)...")
     print("=" * 50)
     
     # Test with a single user first
@@ -155,12 +155,12 @@ def test_timeline_fetch(api, max_tweets=5):
         return results
         
     except tweepy.TweepError as e:
-        print(f"❌ Error fetching timeline: {e}")
+        print(f"ERROR: Error fetching timeline: {e}")
         return []
 
 def test_search_functionality(api):
     """Test search functionality"""
-    print("\n🔍 Testing Search Functionality...")
+    print("\nTesting Search Functionality...")
     print("=" * 50)
     
     search_queries = [
@@ -195,19 +195,19 @@ def test_search_functionality(api):
             
             results[query] = query_results
             
-            print(f"  ✅ Found {len(tweets)} tweets")
+            print(f"  SUCCESS: Found {len(tweets)} tweets")
             for tweet in tweets[:2]:  # Show first 2
                 print(f"    @{tweet.user.screen_name}: {tweet.full_text[:50]}...")
             
         except tweepy.TweepError as e:
-            print(f"  ❌ Error searching for '{query}': {e}")
+            print(f"  ERROR: Error searching for '{query}': {e}")
             results[query] = {"error": str(e)}
     
     return results
 
 def generate_test_report(api_success, user_results, timeline_results, search_results):
     """Generate a comprehensive test report"""
-    print("\n📋 Twitter API Test Summary")
+    print("\nTwitter API Test Summary")
     print("=" * 50)
     
     timestamp = datetime.now().isoformat()
@@ -224,10 +224,10 @@ def generate_test_report(api_success, user_results, timeline_results, search_res
     successful_users = sum(1 for user_data in user_results.values() if "error" not in user_data)
     total_users = len(user_results)
     
-    print(f"API Access: {'✅ Success' if api_success else '❌ Failed'}")
+    print(f"API Access: {'SUCCESS' if api_success else 'FAILED'}")
     print(f"User Lookup: {successful_users}/{total_users} successful")
-    print(f"Timeline Fetch: {'✅ Success' if timeline_results else '❌ Failed'}")
-    print(f"Search: {'✅ Success' if search_results else '❌ Failed'}")
+    print(f"Timeline Fetch: {'SUCCESS' if timeline_results else 'FAILED'}")
+    print(f"Search: {'SUCCESS' if search_results else 'FAILED'}")
     
     # Save results
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -236,29 +236,29 @@ def generate_test_report(api_success, user_results, timeline_results, search_res
     with open(results_file, 'w') as f:
         json.dump(summary, f, indent=2, default=str)
     
-    print(f"\n✅ Results saved to: {results_file}")
+    print(f"\nResults saved to: {results_file}")
     
     # Recommendations
-    print("\n💡 Recommendations:")
+    print("\nRecommendations:")
     if api_success:
-        print("✅ Twitter API access is working correctly")
-        print("✅ Ready to proceed with data ingestion")
+        print("SUCCESS: Twitter API access is working correctly")
+        print("SUCCESS: Ready to proceed with data ingestion")
     else:
-        print("❌ Check Twitter API credentials in .env file")
-        print("❌ Verify API permissions and rate limits")
+        print("ERROR: Check Twitter API credentials in .env file")
+        print("ERROR: Verify API permissions and rate limits")
     
     return summary
 
 def main():
     """Main test function"""
-    print("🐦 Twitter API Access Test Suite")
+    print("Twitter API Access Test Suite")
     print("=" * 60)
     
     # Test basic API access
     api_success, api = test_twitter_api_access()
     
     if not api_success:
-        print("\n❌ Cannot proceed without API access")
+        print("\nERROR: Cannot proceed without API access")
         return
     
     # Test user lookup
@@ -273,7 +273,7 @@ def main():
     # Generate report
     summary = generate_test_report(api_success, user_results, timeline_results, search_results)
     
-    print("\n🎉 Twitter API test completed!")
+    print("\nTwitter API test completed")
 
 if __name__ == "__main__":
     main() 

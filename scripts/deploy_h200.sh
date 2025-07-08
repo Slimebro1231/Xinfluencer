@@ -5,7 +5,7 @@
 
 set -e  # Exit on any error
 
-echo "🚀 Starting H200 deployment for Xinfluencer AI..."
+echo "Starting H200 deployment for Xinfluencer AI..."
 
 # Colors for output
 RED='\033[0;31m'
@@ -258,7 +258,7 @@ EOF
 
 # Main deployment function
 main() {
-    echo "🎯 H200 Deployment for Xinfluencer AI"
+    echo "H200 Deployment for Xinfluencer AI"
     echo "====================================="
     
     check_system
@@ -271,7 +271,7 @@ main() {
     create_startup_script
     
     echo ""
-    echo "🎉 Deployment completed successfully!"
+    echo "Deployment completed successfully"
     echo ""
     echo "Next steps:"
     echo "1. Update .env with your Twitter API credentials"

@@ -12,7 +12,7 @@ from datetime import datetime
 
 def test_basic_gpu_access():
     """Test basic GPU access and properties"""
-    print("🔍 Testing H200 GPU Access...")
+    print("Testing H200 GPU Access...")
     print("=" * 50)
     
     # Check CUDA availability
@@ -20,7 +20,7 @@ def test_basic_gpu_access():
     print(f"CUDA Available: {cuda_available}")
     
     if not cuda_available:
-        print("❌ CUDA not available. Please check GPU drivers.")
+        print("ERROR: CUDA not available. Please check GPU drivers.")
         return False
     
     # GPU information
@@ -36,16 +36,16 @@ def test_basic_gpu_access():
     
     # Check if it looks like an H200
     if "H200" in device_name or total_memory >= 80:
-        print("✅ H200 or equivalent high-memory GPU detected!")
+        print("SUCCESS: H200 or equivalent high-memory GPU detected")
     else:
-        print(f"⚠️  GPU detected: {device_name} ({total_memory:.1f}GB)")
+        print(f"WARNING: GPU detected: {device_name} ({total_memory:.1f}GB)")
         print("   This may not be an H200, but will still work for testing.")
     
     return True
 
 def test_memory_operations():
     """Test GPU memory operations"""
-    print("\n🧠 Testing GPU Memory Operations...")
+    print("\nTesting GPU Memory Operations...")
     print("=" * 50)
     
     device = torch.device("cuda")
@@ -93,7 +93,7 @@ def test_memory_operations():
 
 def test_embedding_operations():
     """Test embedding-like operations"""
-    print("\n🔤 Testing Embedding Operations...")
+    print("\nTesting Embedding Operations...")
     print("=" * 50)
     
     device = torch.device("cuda")
@@ -143,7 +143,7 @@ def test_embedding_operations():
 
 def test_memory_bandwidth():
     """Test memory bandwidth"""
-    print("\n📊 Testing Memory Bandwidth...")
+    print("\nTesting Memory Bandwidth...")
     print("=" * 50)
     
     device = torch.device("cuda")
@@ -192,7 +192,7 @@ def test_memory_bandwidth():
 
 def generate_summary_report(memory_results, embedding_results, bandwidth_results):
     """Generate a summary report"""
-    print("\n📋 H200 Access Test Summary")
+    print("\nH200 Access Test Summary")
     print("=" * 50)
     
     # Calculate averages
@@ -228,36 +228,36 @@ def generate_summary_report(memory_results, embedding_results, bandwidth_results
     with open(results_file, 'w') as f:
         json.dump(summary, f, indent=2, default=str)
     
-    print(f"\n✅ Results saved to: {results_file}")
+    print(f"\nResults saved to: {results_file}")
     
     # Performance assessment
-    print("\n🎯 Performance Assessment:")
+    print("\nPerformance Assessment:")
     if avg_gflops > 1000:
-        print("✅ Excellent compute performance")
+        print("SUCCESS: Excellent compute performance")
     elif avg_gflops > 500:
-        print("✅ Good compute performance")
+        print("SUCCESS: Good compute performance")
     else:
-        print("⚠️  Lower than expected compute performance")
+        print("WARNING: Lower than expected compute performance")
     
     if avg_h2d_bandwidth > 10:
-        print("✅ Excellent memory bandwidth")
+        print("SUCCESS: Excellent memory bandwidth")
     elif avg_h2d_bandwidth > 5:
-        print("✅ Good memory bandwidth")
+        print("SUCCESS: Good memory bandwidth")
     else:
-        print("⚠️  Lower than expected memory bandwidth")
+        print("WARNING: Lower than expected memory bandwidth")
     
     if max_throughput > 100:
-        print("✅ Excellent embedding throughput")
+        print("SUCCESS: Excellent embedding throughput")
     elif max_throughput > 50:
-        print("✅ Good embedding throughput")
+        print("SUCCESS: Good embedding throughput")
     else:
-        print("⚠️  Lower than expected embedding throughput")
+        print("WARNING: Lower than expected embedding throughput")
     
     return summary
 
 def main():
     """Main test function"""
-    print("🚀 H200 Access Test Suite")
+    print("H200 Access Test Suite")
     print("=" * 60)
     
     # Test basic access
@@ -272,8 +272,8 @@ def main():
     # Generate summary
     summary = generate_summary_report(memory_results, embedding_results, bandwidth_results)
     
-    print("\n🎉 H200 access test completed successfully!")
-    print("Ready to run full performance suite.")
+    print("\nH200 access test completed successfully")
+    print("Ready to run full performance suite")
 
 if __name__ == "__main__":
     main() 

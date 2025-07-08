@@ -1,0 +1,100 @@
+# Virtual Environment
+venv/
+env/
+.venv/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data files (exclude from git due to size)
+*.csv
+*.json
+*.pkl
+*.pickle
+data/raw/
+data/processed/
+data/cache/
+
+# Model files (too large for git)
+*.pt
+*.pth
+*.bin
+*.safetensors
+models/
+checkpoints/
+model_cache/
+
+# SSH keys and credentials
+*.pem
+*.key
+*.cert
+credentials/
+secrets/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Cache directories
+.cache/
+.huggingface/
+.transformers_cache/
+
+# Vector database data
+qdrant_storage/
+vector_db/
+
+# Monitoring data
+prometheus_data/
+grafana_data/ 

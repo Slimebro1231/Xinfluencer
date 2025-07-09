@@ -7,7 +7,8 @@ sentence-transformers>=2.2.0
 peft>=0.4.0
 accelerate>=0.20.0
 bitsandbytes>=0.41.0
-flash-attn>=2.0.0
+# flash-attn>=2.0.0  # Optional, requires CUDA
+sentencepiece>=0.1.99
 
 # Vector Database
 qdrant-client>=1.3.0
@@ -26,6 +27,8 @@ beautifulsoup4>=4.12.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
+Flask
+requests
 
 # Monitoring and Evaluation
 prometheus-client>=0.17.0
@@ -51,3 +54,4 @@ fastapi>=0.100.0
 spacy>=3.6.0
 nltk>=3.8.0
 click>=8.0.0 
+fastembed 

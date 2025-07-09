@@ -89,7 +89,7 @@ Explanation: [your explanation]
 """
         
         # Generate review
-        review = self.generator.generate_response(review_prompt, max_new_tokens=80)
+        review = self.generator.generate(review_prompt, max_new_tokens=150)
         
         # Parse score and explanation
         score = self._parse_score(review)

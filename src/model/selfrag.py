@@ -4,16 +4,19 @@ from typing import List, Dict, Optional, Tuple
 import logging
 from model.generate import TextGenerator
 from vector.search import VectorSearcher
+from review.ai import AIReviewer
 
 logger = logging.getLogger(__name__)
 
 class SelfRAGGenerator:
-    """Self-Reflective Retrieval-Augmented Generation."""
-    
-    def __init__(self, generator: Optional[TextGenerator] = None, searcher: Optional[VectorSearcher] = None):
-        """Initialize Self-RAG components."""
-        self.generator = generator or TextGenerator()
-        self.searcher = searcher or VectorSearcher()
+    """A generator that uses Self-RAG to improve responses."""
+
+    def __init__(self, generator: TextGenerator, searcher: VectorSearcher, reviewer: AIReviewer):
+        """Initialize the Self-RAG generator."""
+        self.generator = generator
+        self.searcher = searcher
+        self.reviewer = reviewer
+        self.max_iterations = 3
         
         # Self-reflection prompts
         self.reflection_prompts = {
@@ -34,35 +37,35 @@ class SelfRAGGenerator:
         for iteration in range(max_iterations):
             logger.info(f"Self-RAG iteration {iteration + 1}/{max_iterations}")
             
-            # Step 1: Retrieve relevant context
-            context = self.searcher.get_context_for_generation(query)
+            # Step 1: Retrieve context
+            context_chunks = self.searcher.search_text(query, limit=3)
+            context = " ".join([chunk['text'] for chunk in context_chunks])
+
+            # Step 2: Generate with context
+            prompt_with_context = f"Query: {query}\n\nContext: {context}\n\nAnswer:"
+            response = self.generator.generate(prompt_with_context, max_length=150)
+
+            # Step 3: Evaluate response
+            review = self.reviewer.review_response(query, response, context)
+            score = review["overall_score"]
             
-            # Step 2: Generate initial response
-            response = self.generator.generate_with_context(query, context, max_new_tokens=100)
-            
-            # Step 3: Self-reflection and critique
-            reflection_scores = self._self_reflect(query, response, context)
-            
-            # Step 4: Calculate overall score
-            overall_score = self._calculate_overall_score(reflection_scores)
-            
-            iteration_data = {
+            # Step 4: Store results
+            iterations.append({
                 "iteration": iteration + 1,
                 "response": response,
                 "context": context,
-                "reflection_scores": reflection_scores,
-                "overall_score": overall_score
-            }
-            iterations.append(iteration_data)
+                "scores": review["scores"],
+                "overall_score": score
+            })
             
             # Step 5: Check if this is the best response so far
-            if overall_score > best_score:
+            if score > best_score:
                 best_response = response
-                best_score = overall_score
+                best_score = score
             
             # Step 6: Early stopping if score is high enough
-            if overall_score >= 8.0:
-                logger.info(f"Early stopping - high quality response achieved (score: {overall_score})")
+            if score >= 8.0:
+                logger.info(f"Early stopping - high quality response achieved (score: {score})")
                 break
         
         result = {

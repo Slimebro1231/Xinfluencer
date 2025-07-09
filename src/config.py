@@ -37,6 +37,7 @@ class ModelConfig(BaseSettings):
     """Model configuration."""
     generation_model: str = Field(default="mistralai/Mistral-7B-v0.1", alias="GENERATION_MODEL")
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="EMBEDDING_MODEL")
+    huggingface_token: Optional[str] = Field(default=None, alias="HUGGING_FACE_TOKEN")
     
     class Config:
         env_file = ".env"
@@ -74,10 +75,11 @@ class Config(BaseSettings):
     
     # KOL list - you can customize this
     crypto_kols: List[str] = [
-        "elonmusk", "VitalikButerin", "novogratz", "CryptoCobain",
-        "CryptoBullish", "TheCryptoDog", "CryptoKaleo", "KoroushAK",
-        "cz_binance", "SBF_FTX", "michael_saylor", "peter_schiff",
-        "realDonaldTrump", "JoeBiden", "SECGov", "CFTCgov"
+        "elonmusk", "VitalikButerin"
+        # "novogratz", "CryptoCobain",
+        # "CryptoBullish", "TheCryptoDog", "CryptoKaleo", "KoroushAK",
+        # "cz_binance", "SBF_FTX", "michael_saylor", "peter_schiff",
+        # "realDonaldTrump", "JoeBiden", "SECGov", "CFTCgov"
     ]
     
     class Config:

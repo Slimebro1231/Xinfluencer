@@ -4,8 +4,8 @@ import logging
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent))
+# Add the project's 'src' directory to the Python path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 # Data modules
 from data.ingest import fetch_tweets
@@ -40,10 +40,15 @@ def main():
     logger.info("🚀 Starting Xinfluencer AI pipeline...")
     
     try:
-        # Step 1: Data ingestion
-        logger.info("📥 Fetching tweets from KOL accounts...")
-        tweets = fetch_tweets()
-        logger.info(f"📊 Retrieved {len(tweets)} tweets")
+        # Step 1: Data ingestion (MODIFIED FOR TESTING)
+        logger.info("📥 SKIPPING tweet fetching for testing and using mock data.")
+        # tweets = fetch_tweets()
+        tweets = [
+            {"id": "1", "text": "This is a test tweet about crypto and blockchain.", "created_at": "2025-07-09T12:00:00Z"},
+            {"id": "2", "text": "What are the latest advancements in DeFi?", "created_at": "2025-07-09T12:05:00Z"},
+            {"id": "3", "text": "Elon Musk just tweeted about Dogecoin again!", "created_at": "2025-07-09T12:10:00Z"},
+        ]
+        logger.info(f"📊 Using {len(tweets)} mock tweets for pipeline run.")
         
         # Step 2: Quality filtering
         logger.info("🔍 Running quality gate filters...")
@@ -80,8 +85,8 @@ def main():
         logger.info("🧠 Initializing AI components...")
         generator = TextGenerator()
         searcher = VectorSearcher(vector_db, embedder)
-        selfrag_generator = SelfRAGGenerator(generator, searcher)
         ai_reviewer = AIReviewer(generator)
+        selfrag_generator = SelfRAGGenerator(generator, searcher, ai_reviewer)
         
         # Step 7: Demo generation and review
         logger.info("🎯 Running demo generation...")

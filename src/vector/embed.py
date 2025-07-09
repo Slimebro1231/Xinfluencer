@@ -25,6 +25,9 @@ class TextEmbedder:
     
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """Generate embeddings for multiple texts."""
+        if not texts:
+            return []
+            
         # Tokenize texts
         encoded = self.tokenizer(
             texts,

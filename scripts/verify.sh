@@ -34,7 +34,7 @@ print_error() {
 sync_verification_script() {
     print_status "Syncing verification script to H200 server..."
     
-    scp -i "$PEM_FILE" scripts/verify_production_setup.py "$H200_USER@$H200_SERVER:$REMOTE_DIR/"
+    scp -i "$PEM_FILE" scripts/test_h200_setup.py "$H200_USER@$H200_SERVER:$REMOTE_DIR/scripts/"
     
     print_success "Verification script synced"
 }
@@ -48,7 +48,7 @@ run_verification() {
         source xinfluencer_env/bin/activate
         
         echo \"Running H200 verification...\"
-        python3 verify_production_setup.py
+        python3 scripts/test_h200_setup.py
     '"
     
     print_success "Verification completed"

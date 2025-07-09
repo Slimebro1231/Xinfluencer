@@ -1,5 +1,7 @@
 # Core ML and AI libraries
-torch>=2.0.0
+torch>=2.6.0
+torchvision
+torchaudio
 transformers>=4.30.0
 sentence-transformers>=2.2.0
 peft>=0.4.0

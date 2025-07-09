@@ -35,7 +35,7 @@ class VectorDBConfig(BaseSettings):
 
 class ModelConfig(BaseSettings):
     """Model configuration."""
-    generation_model: str = Field(default="microsoft/DialoGPT-medium", alias="GENERATION_MODEL")
+    generation_model: str = Field(default="mistralai/Mistral-7B-v0.1", alias="GENERATION_MODEL")
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="EMBEDDING_MODEL")
     
     class Config:

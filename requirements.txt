@@ -2,48 +2,50 @@
 torch>=2.0.0
 transformers>=4.30.0
 sentence-transformers>=2.2.0
-peft>=0.4.0  # For LoRA fine-tuning
-accelerate>=0.20.0  # For model loading optimization
-bitsandbytes>=0.41.0  # For 4-bit quantization
+peft>=0.4.0
+accelerate>=0.20.0
+bitsandbytes>=0.41.0
+flash-attn>=2.0.0
 
-# Vector database
+# Vector Database
 qdrant-client>=1.3.0
 
-# Data processing
+# Data Handling
 pandas>=2.0.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
 
-# Web scraping and APIs
+# APIs and Web
 requests>=2.31.0
-tweepy>=4.14.0  # For Twitter API
+tweepy>=4.14.0
 beautifulsoup4>=4.12.0
 
-# Configuration and validation
+# Configuration and Utilities
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
-# Monitoring and evaluation
+# Monitoring and Evaluation
 prometheus-client>=0.17.0
-ragas>=0.0.20  # For RAG evaluation
+ragas>=0.0.20
 
-# Utilities
+# General Utilities
 tqdm>=4.65.0
 python-dateutil>=2.8.0
 pytz>=2023.3
 
-# Development and testing
+# Testing and Linting
 pytest>=7.4.0
 pytest-cov>=4.1.0
 black>=23.0.0
 flake8>=6.0.0
 
-# Optional: For production deployment
+# Web Server
 gunicorn>=21.0.0
 uvicorn>=0.23.0
 fastapi>=0.100.0
 
-# Optional: For advanced NLP
+# NLP
 spacy>=3.6.0
-nltk>=3.8.0 
+nltk>=3.8.0
+click>=8.0.0 

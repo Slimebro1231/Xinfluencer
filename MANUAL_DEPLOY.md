@@ -8,10 +8,15 @@ This guide provides the exact steps to deploy the Xinfluencer AI system to the H
 ssh -i /Users/max/Xinfluencer/influencer.pem ubuntu@157.10.162.127
 ```
 
-### Step 2: Clone the Repository
+### Step 2: Set up the Project
 
+If you have not cloned the repository yet:
 ```bash
-git clone https://github.com/your-repo/xinfluencer.git /home/ubuntu/xinfluencer
+git clone <your-repository-url> /home/ubuntu/xinfluencer
+```
+
+Navigate to the project directory:
+```bash
 cd /home/ubuntu/xinfluencer
 ```
 
@@ -42,6 +47,9 @@ python3 -m pip install flash-attn --no-build-isolation
 
 ### Step 6: Run the Test Suite
 
+To verify the installation, run the test suite:
 ```bash
 python3 scripts/test_h200_setup.py
-``` 
+```
+
+If all tests pass, the environment is set up correctly. 

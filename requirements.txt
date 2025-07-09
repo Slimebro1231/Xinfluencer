@@ -492,8 +492,9 @@ tiktoken==0.9.0
     # via
     #   langchain-openai
     #   ragas
-tokenizers==0.15.2
+tokenizers==0.15.0
     # via
+    #   -r requirements.in
     #   fastembed
     #   transformers
 tomli==2.2.1

@@ -30,7 +30,7 @@ class LoRAFineTuner:
             r=16,  # Rank
             lora_alpha=32,  # Alpha parameter
             lora_dropout=0.1,
-            target_modules=["q_proj", "v_proj", "k_proj", "out_proj"]  # Target attention layers
+            target_modules=["c_attn", "c_proj"]  # Safe for DialoGPT
         )
         
         self.peft_model = None

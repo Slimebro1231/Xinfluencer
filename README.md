@@ -85,25 +85,30 @@ python main.py
 
 ### H200 GPU Deployment
 ```bash
-# 1. Run comprehensive H200 tests
-./scripts/run_h200_tests.sh
+# 1. Test H200 connection (update server IP in script first)
+./scripts/check_h200_connection.sh
 
-# 2. If tests pass, deploy to H200
+# 2. Run comprehensive H200 tests on remote server
+./scripts/run_h200_tests_remote.sh
+
+# 3. Deploy to H200 (if needed)
 ./scripts/deploy_h200.sh
 
-# 3. Start the AI agent
+# 4. Start the AI agent
 ./start_xinfluencer.sh
 ```
 
 ### H200 Performance Testing
 ```bash
-# Quick H200 access test
+# Test H200 connection and get system info
+./scripts/check_h200_connection.sh
+
+# Run full performance tests on H200 server
+./scripts/run_h200_tests_remote.sh
+
+# Local tests (for development only)
 python3 scripts/test_h200_access.py
-
-# Twitter API connectivity test
 python3 scripts/test_twitter_api.py
-
-# Full performance benchmark
 python3 tests/test_h200_performance.py
 ```
 

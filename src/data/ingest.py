@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 import tweepy
-from ..config import get_config
+from config import get_config
 
 logger = logging.getLogger(__name__)
 

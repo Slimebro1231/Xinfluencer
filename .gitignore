@@ -3,6 +3,7 @@ venv/
 env/
 .venv/
 .env/
+xinfluencer_env/
 
 # Python
 __pycache__/

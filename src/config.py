@@ -66,7 +66,13 @@ class LoggingConfig(BaseSettings):
         extra = "ignore"
 
 class Config(BaseSettings):
-    """Main configuration class."""
+    """Main configuration class for the application."""
+    app_name: str = "Xinfluencer AI"
+    env: str = "development"
+    
+    huggingface_token: str
+
+    # Sub-configurations
     twitter: TwitterConfig = TwitterConfig()
     vector_db: VectorDBConfig = VectorDBConfig()
     model: ModelConfig = ModelConfig()

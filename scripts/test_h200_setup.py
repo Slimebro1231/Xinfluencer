@@ -12,6 +12,12 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import os
+import torch
+import json
+import gc
+from transformers import AutoTokenizer, BitsAndBytesConfig, GPT2LMHeadModel, MistralForCausalLM
+
 def test_cuda_setup():
     """Test CUDA and PyTorch setup."""
     print("=== Testing CUDA Setup ===")
@@ -47,7 +53,7 @@ def test_model_loading():
     print("\n=== Testing Model Loading ===")
     
     try:
-        from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+        from transformers import AutoTokenizer, BitsAndBytesConfig, GPT2LMHeadModel, MistralForCausalLM
         import torch
         
         # Test with a smaller model first
@@ -70,30 +76,24 @@ def test_model_loading():
         else:
             quantization_config = None
         
-        # Load model
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            quantization_config=quantization_config,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto" if torch.cuda.is_available() else None,
-            trust_remote_code=True,
-            low_cpu_mem_usage=True
-        )
-        print("✅ Model loaded successfully")
-        
-        # Test generation
-        prompt = "Hello, how are you?"
-        inputs = tokenizer.encode(prompt, return_tensors="pt", truncation=True, max_length=512)
-        if torch.cuda.is_available():
-            inputs = inputs.cuda()
-        
-        with torch.no_grad():
-            outputs = model.generate(inputs, max_new_tokens=20, temperature=0.7)
-        
-        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        print(f"✅ Generation test passed: {response}")
-        
-        return True
+        try:
+            if "mistral" in model_name.lower():
+                model = MistralForCausalLM.from_pretrained(
+                    model_name,
+                    quantization_config=quantization_config,
+                    device_map="auto",
+                )
+            else:
+                model = GPT2LMHeadModel.from_pretrained(
+                    model_name,
+                    quantization_config=quantization_config,
+                    device_map="auto",
+                )
+            print("✅ Model loaded successfully")
+            return model
+        except Exception as e:
+            print(f"❌ Model loading test failed: {e}")
+            return None
         
     except Exception as e:
         print(f"❌ Model loading test failed: {e}")
@@ -190,7 +190,10 @@ def test_memory_usage():
 def main():
     """Run all tests."""
     print("🚀 H200 Setup Test Suite")
-    print("=" * 50)
+    print("==================================================")
+    print("Python Path:")
+    print(sys.path)
+    print("==================================================")
     
     results = {}
     

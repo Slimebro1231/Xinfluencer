@@ -11,11 +11,9 @@ load_dotenv()
 
 class TwitterConfig(BaseSettings):
     """Twitter API configuration."""
-    api_key: str = Field(..., alias="TWITTER_API_KEY")
-    api_secret: str = Field(..., alias="TWITTER_API_SECRET")
-    bearer_token: str = Field(..., alias="TWITTER_BEARER_TOKEN")
-    access_token: str = Field(..., alias="TWITTER_ACCESS_TOKEN")
-    access_token_secret: str = Field(..., alias="TWITTER_ACCESS_TOKEN_SECRET")
+    username: str = Field(..., alias="TWITTER_USERNAME")
+    email: str = Field(..., alias="TWITTER_EMAIL")
+    password: str = Field(..., alias="TWITTER_PASSWORD")
     
     class Config:
         env_file = ".env"
@@ -82,6 +80,8 @@ class Config(BaseSettings):
     
     class Config:
         env_file = ".env"
+        env_nested_delimiter = '__'
+        extra = "ignore"  # Allow extra fields
 
 # Global configuration instance
 config = Config()

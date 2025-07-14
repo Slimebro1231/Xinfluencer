@@ -1,14 +1,14 @@
-# 🚀 H200 Quick Start Guide
+# H200 Quick Start Guide
 
 This guide will help you set up and run the Xinfluencer AI system on the H200 GPU server.
 
-## 📋 Prerequisites
+## Prerequisites
 
 - SSH access to H200 server (`157.10.162.127`)
 - SSH key configured (`~/.ssh/id_rsa`)
 - Basic familiarity with command line
 
-## 🎯 Quick Start (3 Steps)
+## Quick Start (3 Steps)
 
 ### Step 1: Deploy to H200
 ```bash
@@ -17,12 +17,12 @@ This guide will help you set up and run the Xinfluencer AI system on the H200 GP
 ```
 
 This script will:
-- ✅ Test H200 connection
-- ✅ Check GPU status
-- ✅ Sync project files
-- ✅ Install dependencies
-- ✅ Set up environment
-- ✅ Create startup scripts
+- Test H200 connection
+- Check GPU status
+- Sync project files
+- Install dependencies
+- Set up environment
+- Create startup scripts
 
 ### Step 2: SSH to H200
 ```bash
@@ -37,7 +37,7 @@ cd /home/ubuntu/xinfluencer
 ./start_xinfluencer.sh
 ```
 
-## 🤖 Using the AI System
+## Using the AI System
 
 ### Command Line Interface (CLI)
 
@@ -67,21 +67,21 @@ python3 src/cli.py interactive
 python3 src/cli.py interactive
 
 # In interactive mode:
-🤖 Xinfluencer AI > What's the latest trend in crypto?
-🤖 [AI response will appear here]
+Xinfluencer AI > What's the latest trend in crypto?
+[AI response will appear here]
 
-🤖 Xinfluencer AI > rag How should I invest in Bitcoin?
-🧠 Response: [Self-RAG response with context]
-📊 Score: 8.5
+Xinfluencer AI > rag How should I invest in Bitcoin?
+Response: [Self-RAG response with context]
+Score: 8.5
 
-🤖 Xinfluencer AI > memory
-💾 GPU Memory: 12.5GB / 80.0GB
+Xinfluencer AI > memory
+GPU Memory: 12.5GB / 80.0GB
 
-🤖 Xinfluencer AI > quit
-👋 Goodbye!
+Xinfluencer AI > quit
+Goodbye!
 ```
 
-## 🔧 System Management
+## System Management
 
 ### Monitor System Status
 ```bash
@@ -101,7 +101,7 @@ python3 scripts/test_h200_setup.py
 tail -f logs/xinfluencer.log
 ```
 
-## 🎛️ Configuration
+## Configuration
 
 ### Model Configuration
 The system uses **Mistral-7B** by default with 4-bit quantization for H200 optimization.
@@ -133,7 +133,7 @@ CHUNK_SIZE=256
 CHUNK_OVERLAP=50
 ```
 
-## 📊 Performance Expectations
+## Performance Expectations
 
 ### H200 Performance
 - **Model Loading**: ~2-3 minutes (first time)
@@ -147,7 +147,7 @@ CHUNK_OVERLAP=50
 - **Self-RAG**: Enabled for factual accuracy
 - **Review System**: Multi-criteria evaluation
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -195,7 +195,7 @@ python3 scripts/test_h200_setup.py
 tail -f logs/xinfluencer.log
 ```
 
-## 🎯 Production Usage
+## Production Usage
 
 ### Recommended Workflow
 
@@ -222,13 +222,13 @@ tail -f logs/xinfluencer.log
 
 ### Best Practices
 
-- ✅ Use Self-RAG for factual queries
-- ✅ Monitor GPU memory usage
-- ✅ Keep system logs for debugging
-- ✅ Use interactive mode for testing
-- ✅ Clear memory when needed
+- Use Self-RAG for factual queries
+- Monitor GPU memory usage
+- Keep system logs for debugging
+- Use interactive mode for testing
+- Clear memory when needed
 
-## 🚀 Advanced Features
+## Advanced Features
 
 ### Self-RAG Generation
 The system includes Self-RAG for improved factual accuracy:
@@ -248,17 +248,3 @@ Monitor and manage GPU memory:
 python3 src/cli.py memory
 python3 src/cli.py memory --clear
 ```
-
-## 📈 Next Steps
-
-1. **Customize the model** for your specific use case
-2. **Integrate with Twitter API** for real data
-3. **Set up monitoring dashboard** with Prometheus/Grafana
-4. **Implement PPO training** for continuous improvement
-5. **Add human review interface** for quality control
-
----
-
-**🎉 You're now ready to use the AI system on H200!**
-
-For questions or issues, check the logs or run the test suite.

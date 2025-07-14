@@ -3,7 +3,7 @@
 At launch the agent is given a seed list of ~100 trusted KOL accounts. Humans watch its first outputs (the bootstrap gate) while automated filters kill spam, bots and toxic tweets. Clean chunks go into a GPU-backed vector DB. At inference the model uses Self-RAG—retrieve → draft → re-retrieve & critique—to write tweets with a certain personality. Every draft is scored three ways: (1) humans, (2) an “AI peer” critic running raw GPT-4o, and (3) real Twitter engagement. All three signals feed a reward model; once a week a PPO policy update (via the Hugging-Face TRL library) shifts what the bot reads and how it speaks. Meanwhile a daily LoRA micro-tune nudges the LLM itself. A Prometheus + Grafana dashboard plus the RAGAS evaluation library surface retrieval precision, faithfulness and latency so ops can see drift in real time. LoRA's key knobs are the rank *r* (we use 16) and scaling factor α (≈ 2 × *r*); they decide how many new parameters the adapter learns (~2 % of the model) and how strongly they steer the frozen weights, while **RAGAS** (Retrieval‑Augmented‑Generation Assessment Suite) tracks context‑precision, faithfulness, answer‑relevancy and latency so we spot drift early.
 
 
-## 🔄 High‑Level Flow Diagram
+## High‑Level Flow Diagram
 
 ```mermaid
 flowchart TD
@@ -62,6 +62,24 @@ flowchart TD
     POST -. brand‑drift .-> DASH
 
 ```
+
+### Twitter API Use Case
+Our system leverages the Twitter API v2 for robust, targeted data collection from Key Opinion Leaders (KOLs). We focus on retrieving high-quality, recent tweets while minimizing noise and irrelevant content. The primary endpoint used is the `Recent search` endpoint.
+
+**Endpoint:** `GET /2/tweets/search/recent`
+
+**Key Parameters & Fields:**
+
+| Parameter | Value / Customization | Purpose |
+|---|---|---|
+| `query` | `from:<KOL_username> -is:retweet -is:reply` | Fetches tweets directly from a specific KOL, excluding retweets and replies to focus on original content. |
+| `max_results` | `100` | Retrieves the maximum number of tweets per request to ensure we capture a comprehensive set of recent activity. |
+| `tweet.fields` | `created_at,public_metrics,text,author_id,lang` | Specifies the exact fields we need: tweet creation time for recency, engagement metrics for quality scoring, the text content for analysis, author ID for verification, and language for filtering. |
+| `user.fields` | `public_metrics,verified` | Gathers user-level data, including follower count (as part of `public_metrics`) and verification status, to help assess the KOL's influence and authenticity. |
+| `expansions` | `author_id` | Ensures the full user object is returned alongside the tweet, allowing us to access the requested `user.fields`. |
+
+
+This configuration allows us to build a high-signal dataset of original content from trusted sources, which is essential for the quality of our downstream AI generation tasks.
 
 ### Abbreviation Glossary
 | Term | Meaning / Role in Flow |

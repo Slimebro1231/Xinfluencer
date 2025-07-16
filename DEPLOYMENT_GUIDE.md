@@ -28,7 +28,7 @@ This improved script will:
 
 ```bash
 # SSH to H200 (script will provide the exact command)
-ssh -i ~/.ssh/id_rsa ubuntu@157.10.162.127
+ssh -i /Users/max/Xinfluencer/influencer.pem ubuntu@157.10.162.127
 
 # Navigate to project directory
 cd /home/ubuntu/xinfluencer

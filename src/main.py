@@ -3,6 +3,8 @@
 import logging
 import sys
 from pathlib import Path
+import os
+import tweepy
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -144,6 +146,23 @@ def main():
         
         approved_count = sum(1 for r in demo_results if r["review_result"]["approved"])
         logger.info(f"  • Approved responses: {approved_count}/{len(demo_results)}")
+
+        # Post to Twitter if there is at least one approved response
+        if approved_count > 0:
+            try:
+                logger.info("Attempting to post 'Hello world' to Twitter...")
+                # Load credentials from environment
+                api_key = os.getenv('TWITTER_API_KEY')
+                api_secret = os.getenv('TWITTER_API_SECRET')
+                access_token = os.getenv('TWITTER_ACCESS_TOKEN')
+                access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+                
+                auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_token_secret)
+                api = tweepy.API(auth)
+                api.update_status("Hello world")
+                logger.info("Successfully posted 'Hello world' to Twitter.")
+            except Exception as e:
+                logger.error(f"Failed to post to Twitter: {e}")
         
         avg_selfrag_score = sum(r["selfrag_result"]["best_score"] for r in demo_results) / len(demo_results)
         avg_review_score = sum(r["review_result"]["overall_score"] for r in demo_results) / len(demo_results)

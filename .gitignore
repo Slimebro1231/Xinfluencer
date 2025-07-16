@@ -184,6 +184,7 @@ Temporary Items
 
 # Xinfluencer specific
 xinfluencer_env/
+influencer.pem
 data/scraped/
 logs/
 lora_checkpoints_test/

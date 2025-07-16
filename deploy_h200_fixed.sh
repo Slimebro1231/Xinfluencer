@@ -8,7 +8,7 @@ set -e
 # Configuration
 H200_SERVER="157.10.162.127"
 H200_USER="ubuntu"
-PEM_FILE="$HOME/.ssh/id_rsa"
+PEM_FILE="/Users/max/Xinfluencer/influencer.pem"
 REMOTE_DIR="/home/ubuntu/xinfluencer"
 PROJECT_NAME="xinfluencer"
 VENV_NAME="xinfluencer_env"

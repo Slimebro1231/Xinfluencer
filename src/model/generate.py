@@ -2,7 +2,9 @@
 
 from typing import List, Dict, Optional
 import torch
+import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, GenerationConfig, BitsAndBytesConfig
+from huggingface_hub import login
 import logging
 import gc
 
@@ -16,6 +18,17 @@ class TextGenerator:
         self.model_name = model_name
         self.use_quantization = use_quantization
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # Authenticate with Hugging Face if token is available
+        hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGINGFACE_HUB_TOKEN') or os.getenv('HUGGINGFACE_TOKEN')
+        if hf_token:
+            try:
+                login(token=hf_token)
+                logger.info("Successfully authenticated with Hugging Face")
+            except Exception as e:
+                logger.warning(f"Failed to authenticate with Hugging Face: {e}")
+        else:
+            logger.warning("No HF_TOKEN found in environment - may not be able to access gated models")
         
         logger.info(f"Loading model: {model_name} on {self.device}")
         logger.info(f"CUDA available: {torch.cuda.is_available()}")
@@ -44,16 +57,24 @@ class TextGenerator:
         
         # Load model with optimization
         try:
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                quantization_config=quantization_config,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto" if torch.cuda.is_available() else None,
-                trust_remote_code=True,
-                low_cpu_mem_usage=True
-            )
-            
-            if not torch.cuda.is_available():
+            if torch.cuda.is_available():
+                # H200/GPU loading with optimizations
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    quantization_config=quantization_config,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    trust_remote_code=True,
+                    low_cpu_mem_usage=True
+                )
+            else:
+                # CPU loading (local development)
+                logger.info("Loading model for CPU (local development)")
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    torch_dtype=torch.float32,
+                    trust_remote_code=True
+                )
                 self.model.to(self.device)
                 
         except Exception as e:

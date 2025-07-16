@@ -33,13 +33,13 @@ echo "=============================="
 
 ISSUES=0
 
-# Check 1: SSH key exists
-print_status "Checking SSH key..."
-if [ -f "$HOME/.ssh/id_rsa" ]; then
-    print_success "SSH key found at ~/.ssh/id_rsa"
+# Check for SSH key
+print_status "Checking for SSH key..."
+if [ -f "/Users/max/Xinfluencer/influencer.pem" ]; then
+    print_success "SSH key found at /Users/max/Xinfluencer/influencer.pem"
 else
-    print_error "SSH key not found at ~/.ssh/id_rsa"
-    echo "       Please ensure your SSH key is configured for H200 access"
+    print_error "SSH key not found at /Users/max/Xinfluencer/influencer.pem"
+    print_error "Please ensure your 'influencer.pem' key is in the project root."
     ISSUES=$((ISSUES + 1))
 fi
 
@@ -76,7 +76,7 @@ fi
 print_status "Testing H200 connectivity..."
 H200_SERVER="157.10.162.127"
 H200_USER="ubuntu"
-PEM_FILE="$HOME/.ssh/id_rsa"
+PEM_FILE="/Users/max/Xinfluencer/influencer.pem"
 
 if timeout 10 ssh -i "$PEM_FILE" -o ConnectTimeout=5 -o BatchMode=yes "$H200_USER@$H200_SERVER" "echo 'Connection test'" >/dev/null 2>&1; then
     print_success "H200 server is reachable"

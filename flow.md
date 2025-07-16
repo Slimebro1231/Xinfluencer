@@ -1,6 +1,6 @@
 # Bot‑Influencer Architecture & Data Flywheel
 
-At launch the agent is given a seed list of ~100 trusted KOL accounts. Humans watch its first outputs (the bootstrap gate) while automated filters kill spam, bots and toxic tweets. Clean chunks go into a GPU-backed vector DB. At inference the model uses Self-RAG—retrieve → draft → re-retrieve & critique—to write tweets with a certain personality. Every draft is scored three ways: (1) humans, (2) an “AI peer” critic running raw GPT-4o, and (3) real Twitter engagement. All three signals feed a reward model; once a week a PPO policy update (via the Hugging-Face TRL library) shifts what the bot reads and how it speaks. Meanwhile a daily LoRA micro-tune nudges the LLM itself. A Prometheus + Grafana dashboard plus the RAGAS evaluation library surface retrieval precision, faithfulness and latency so ops can see drift in real time. LoRA's key knobs are the rank *r* (we use 16) and scaling factor α (≈ 2 × *r*); they decide how many new parameters the adapter learns (~2 % of the model) and how strongly they steer the frozen weights, while **RAGAS** (Retrieval‑Augmented‑Generation Assessment Suite) tracks context‑precision, faithfulness, answer‑relevancy and latency so we spot drift early.
+At launch the agent is given a seed list of ~20 trusted KOL accounts. Humans watch its first outputs (the bootstrap gate) while automated filters kill spam, bots and toxic tweets. Clean chunks go into a GPU-backed vector DB. At inference the model uses Self-RAG—retrieve → draft → re-retrieve & critique—to write tweets with a certain personality. Every draft is scored three ways: (1) humans, (2) an “AI peer” critic running raw GPT-4o, and (3) real Twitter engagement. All three signals feed a reward model; once a week a PPO policy update (via the Hugging-Face TRL library) shifts what the bot reads and how it speaks. Meanwhile a daily LoRA micro-tune nudges the LLM itself. A Prometheus + Grafana dashboard plus the RAGAS evaluation library surface retrieval precision, faithfulness and latency so ops can see drift in real time. LoRA's key knobs are the rank *r* (we use 16) and scaling factor α (≈ 2 × *r*); they decide how many new parameters the adapter learns (~2 % of the model) and how strongly they steer the frozen weights, while **RAGAS** (Retrieval‑Augmented‑Generation Assessment Suite) tracks context‑precision, faithfulness, answer‑relevancy and latency so we spot drift early.
 
 
 ## High‑Level Flow Diagram
@@ -63,23 +63,52 @@ flowchart TD
 
 ```
 
-### Twitter API Use Case
-Our system leverages the Twitter API v2 for robust, targeted data collection from Key Opinion Leaders (KOLs). We focus on retrieving high-quality, recent tweets while minimizing noise and irrelevant content. The primary endpoint used is the `Recent search` endpoint.
+### Data Acquisition Strategy
+To power our AI, we employ a two-stage data acquisition strategy. For initial model bootstrapping and testing, we use a script that performs live web searches to gather real content. Once the system is live and the Twitter API plan is active, we will switch to direct API integration for more detailed, real-time data.
+
+#### Stage 1: Initial Bootstrapping (Live Web Scraping)
+To test the full pipeline without API access, we use a script (`scripts/scrape_tweets_from_web.py`) that collects real, publicly available tweet data.
+
+- **Method**: For each KOL, the script performs a live web search for recent tweets using the `duckduckgo-search` library.
+- **Data Format**: It parses the search results to extract tweet text and any visible engagement metrics (likes, retweets). It then formats this information into a JSON structure that mimics the official Twitter API V2 response.
+- **Purpose**: This provides authentic, topical text data to validate our data quality, chunking, RAG, and fine-tuning (LoRA/PPO) pipelines before activating the paid API plan.
+
+#### Stage 2: Live Data Integration (Twitter API v2)
+Once operational, our system will leverage the Twitter API v2 for robust, targeted data collection.
 
 **Endpoint:** `GET /2/tweets/search/recent`
 
+**Authentication:**
+-   **Tier 1 (Default):** App-only authentication for standard access.
+-   **Tier 2 (Enhanced):** User context authentication (OAuth 2.0 with PKCE) will be implemented to access `non_public_metrics` like `impression_count`. The system will gracefully fall back to Tier 1 metrics if user-context auth is unavailable.
+
 **Key Parameters & Fields:**
 
-| Parameter | Value / Customization | Purpose |
-|---|---|---|
-| `query` | `from:<KOL_username> -is:retweet -is:reply` | Fetches tweets directly from a specific KOL, excluding retweets and replies to focus on original content. |
-| `max_results` | `100` | Retrieves the maximum number of tweets per request to ensure we capture a comprehensive set of recent activity. |
-| `tweet.fields` | `created_at,public_metrics,text,author_id,lang` | Specifies the exact fields we need: tweet creation time for recency, engagement metrics for quality scoring, the text content for analysis, author ID for verification, and language for filtering. |
-| `user.fields` | `public_metrics,verified` | Gathers user-level data, including follower count (as part of `public_metrics`) and verification status, to help assess the KOL's influence and authenticity. |
-| `expansions` | `author_id` | Ensures the full user object is returned alongside the tweet, allowing us to access the requested `user.fields`. |
+| Parameter | Details |
+|---|---|
+| `query` | **Value:** `from:<KOL_username> -is:retweet -is:reply`<br/>**Purpose:** Fetches tweets directly from a specific KOL, excluding retweets and replies to focus on original content. |
+| `max_results` | **Value:** `100`<br/>**Purpose:** Retrieves the maximum number of tweets per request to ensure we capture a comprehensive set of recent activity. |
+| `tweet.fields` | **Value:** `created_at,public_metrics,non_public_metrics,text,author_id,lang,possibly_sensitive,referenced_tweets,context_annotations`<br/>**Purpose:** Specifies the exact fields we need:<br/>- **`created_at`**: For recency filtering.<br/>- **`public_metrics`**: `like_count`, `retweet_count` for reward model.<br/>- **`non_public_metrics`**: `impression_count` for a stronger reward signal (requires user auth).<br/>- **`text`**: Raw content for analysis.<br/>- **`author_id`, `lang`**: For verification and filtering.<br/>- **`context_annotations`**: **Crucial for filtering content to the "crypto" and "RWA" space.**<br/>- **`possibly_sensitive`, `referenced_tweets`**: For quality and originality filters. |
+| `user.fields` | **Value:** `public_metrics,verified`<br/>**Purpose:** Gathers user-level data:<br/>- **`verified`**: Authenticity signal.<br/>- **`public_metrics`**: `followers_count` to gauge KOL influence. |
+| `expansions` | **Value:** `author_id`<br/>**Purpose:** Ensures the full user object is returned alongside the tweet, allowing us to access the requested `user.fields`. |
 
+**Post-Fetch Filtering:**
+After retrieval, a filtering step will be applied to the `context_annotations` of each tweet to ensure only content relevant to the **cryptocurrency** and **Real World Asset (RWA)** domains is passed to the next stage of the pipeline. This ensures high topical relevance.
 
 This configuration allows us to build a high-signal dataset of original content from trusted sources, which is essential for the quality of our downstream AI generation tasks.
+
+### KOL Performance Metrics
+To objectively measure and compare the effectiveness of different Key Opinion Leaders (KOLs), especially when they have varying audience sizes, we will use a set of normalized metrics. This approach moves beyond simple vanity metrics (like raw follower counts) to a more nuanced "formula" based on ratios, as you suggested.
+
+The primary objective is to refine our KOL list and inform the AI's content strategy by identifying accounts that generate high-quality engagement relative to their size. Given that we are operating on the Twitter API's Basic plan, we will focus on the metrics available within its limits.
+
+| Metric | Formula / Description | Purpose |
+|---|---|---|
+| **Engagement Rate per Post** | `(Likes + Retweets + Replies) / Follower Count` at time of posting | Measures the percentage of an influencer's audience that actively engages with their content. This is a core indicator of content quality and audience connection. |
+| **Influence Growth Rate** | `(Followers_end - Followers_start) / Followers_start` | Measures the percentage change in an influencer's follower count over a defined period (e.g., weekly, monthly). This indicates their growing or waning relevance in the space. |
+| **Content-Specific Performance** | Analyze Engagement Rate for tweets related to specific topics (e.g., "crypto", "RWA") using `context_annotations`. | Identifies which KOLs are most effective in our specific domains of interest. This directly informs the AI's content and retrieval strategy. |
+
+By tracking these metrics, we can create a dynamic and data-driven process for managing our KOL list, ensuring we are learning from the most impactful voices in the target domains.
 
 ### Abbreviation Glossary
 | Term | Meaning / Role in Flow |

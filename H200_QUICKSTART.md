@@ -4,8 +4,9 @@ This guide will help you set up and run the Xinfluencer AI system on the H200 GP
 
 ## Prerequisites
 
-- SSH access to H200 server (`157.10.162.127`)
-- SSH key configured (`~/.ssh/id_rsa`)
+- Python 3.9+ installed on your local machine
+- SSH access to the H200 server (`157.10.162.127`)
+- SSH key configured at `/Users/max/Xinfluencer/influencer.pem`
 - Basic familiarity with command line
 
 ## Quick Start (3 Steps)

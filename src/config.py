@@ -9,11 +9,24 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+class H200Config(BaseSettings):
+    """H200 server configuration."""
+    pem_file: str = Field(..., alias="H200_PEM_FILE")
+    user: str = Field("ubuntu", alias="H200_USER")
+    host: str = Field("157.10.162.127", alias="H200_HOST")
+    remote_dir: str = Field("/home/ubuntu/xinfluencer", alias="H200_REMOTE_DIR")
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
+
 class TwitterConfig(BaseSettings):
     """Twitter API configuration."""
-    username: str = Field(..., alias="TWITTER_USERNAME")
-    email: str = Field(..., alias="TWITTER_EMAIL")
-    password: str = Field(..., alias="TWITTER_PASSWORD")
+    username: Optional[str] = Field(default=None, alias="TWITTER_USERNAME")
+    email: Optional[str] = Field(default=None, alias="TWITTER_EMAIL")
+    password: Optional[str] = Field(default=None, alias="TWITTER_PASSWORD")
+    bearer_token: Optional[str] = Field(default=None, alias="TWITTER_BEARER_TOKEN")
     
     class Config:
         env_file = ".env"
@@ -22,8 +35,8 @@ class TwitterConfig(BaseSettings):
 
 class VectorDBConfig(BaseSettings):
     """Vector database configuration."""
-    host: str = Field(default="localhost", alias="QDRANT_HOST")
-    port: int = Field(default=6333, alias="QDRANT_PORT")
+    host: str = Field("localhost", alias="VECTOR_DB_HOST")
+    port: int = Field(6333, alias="VECTOR_DB_PORT")
     collection_name: str = Field(default="tweet_chunks", alias="QDRANT_COLLECTION_NAME")
     
     class Config:
@@ -66,6 +79,7 @@ class Config(BaseSettings):
     """Main configuration class."""
     twitter: TwitterConfig = TwitterConfig()
     vector_db: VectorDBConfig = VectorDBConfig()
+    h200: H200Config = H200Config()
     model: ModelConfig = ModelConfig()
     pipeline: PipelineConfig = PipelineConfig()
     logging: LoggingConfig = LoggingConfig()

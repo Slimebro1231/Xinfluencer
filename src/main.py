@@ -116,25 +116,8 @@ def main():
             logger.info(f"Query processed. Self-RAG score: {selfrag_result['best_score']:.1f}, "
                        f"Review score: {review_result['overall_score']:.1f}")
         
-        # Step 8: LoRA fine-tuning preparation (demo)
-        logger.info("🔧 Preparing LoRA fine-tuning...")
-        lora_tuner = LoRAFineTuner()
-        
-        # Prepare training data from approved responses
-        training_data = []
-        for result in demo_results:
-            if result["review_result"]["approved"]:
-                training_data.append({
-                    "query": result["query"],
-                    "response": result["selfrag_result"]["best_response"],
-                    "approved": True
-                })
-        
-        if training_data:
-            logger.info(f"Prepared {len(training_data)} samples for LoRA training")
-            # Note: Actual fine-tuning would be resource-intensive
-            # lora_adapter_path = lora_tuner.fine_tune(training_data)
-            logger.info("LoRA fine-tuning preparation completed (actual training skipped for demo)")
+        # Step 8: LoRA fine-tuning preparation (demo) - TEMPORARILY DISABLED
+        logger.info("🔧 LoRA fine-tuning preparation skipped for Twitter posting test...")
         
         # Step 9: Results summary
         logger.info("📋 Pipeline Results Summary:")

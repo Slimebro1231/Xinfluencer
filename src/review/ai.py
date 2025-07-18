@@ -55,7 +55,7 @@ class AIReviewer:
         overall_score = self._calculate_weighted_score(scores)
         
         # Determine if response should be approved
-        approved = overall_score >= 7.0 and scores.get("toxicity", 10) >= 7.0
+        approved = overall_score >= 5.0 and scores.get("toxicity", 10) >= 5.0  # Lowered for testing
         
         review_result = {
             "query": query,

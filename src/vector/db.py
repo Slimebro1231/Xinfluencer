@@ -85,6 +85,17 @@ class VectorDB:
         
         logger.info(f"Found {len(results)} similar chunks (query vector size: {len(query_vector)})")
         return results
+    
+    def get_all_vectors(self) -> List[Dict]:
+        """Get all vectors from the database for compatibility with search."""
+        return [
+            {
+                "id": point["id"],
+                "vector": point["vector"],
+                "payload": point["payload"]
+            }
+            for point in self.data
+        ]
 
 
 # Real Qdrant implementation (commented out for demo)

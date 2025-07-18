@@ -40,26 +40,28 @@ The complete Xinfluencer AI pipeline has been successfully implemented and teste
 ```
 Xinfluencer AI Pipeline
 ├── Data Layer
-│   ├── Ingestion (KOL tweets)
-│   ├── Quality Gate (toxicity, bot detection)
-│   └── Chunking (optimized segments)
+│   ├── Ingestion (KOL tweets via DuckDuckGo/Twitter API)
+│   ├── Quality Gate (toxicity, bot detection, perplexity)
+│   └── Chunking (256oken segments with overlap)
 ├── Vector Layer
-│   ├── Embeddings (sentence transformers)
-│   ├── Database (Qdrant-compatible)
-│   └── Search (cosine similarity)
+│   ├── Embeddings (sentence-transformers/all-MiniLM-L6-v2)
+│   ├── Database (Qdrant with GPU acceleration)
+│   └── Search (cosine similarity + cuVS)
 ├── Model Layer
-│   ├── Generation (DialoGPT)
+│   ├── Generation (Mistral-7B with 4bit quantization)
 │   ├── Self-RAG (reflection & iteration)
-│   └── LoRA (fine-tuning framework)
+│   └── LoRA (parameter-efficient fine-tuning)
 ├── Review Layer
-│   ├── AI Review (multi-criteria)
+│   ├── AI Review (multi-criteria evaluation)
 │   ├── Human Review (framework)
-│   └── Reward System (feedback loop)
+│   └── Reward System (PPO with TRL)
 └── Monitoring Layer
-    ├── Logging (structured)
-    ├── Metrics (performance)
-    └── Evaluation (RAGAS-ready)
+    ├── Logging (structured with rotation)
+    ├── Metrics (Prometheus + RAGAS)
+    └── Evaluation (automated quality assessment)
 ```
+
+**📋 For detailed technical analysis of every library, algorithm, and design decision, see [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)**
 
 ## Quick Start
 

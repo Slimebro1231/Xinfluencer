@@ -4,7 +4,6 @@ import logging
 import sys
 from pathlib import Path
 import os
-import tweepy
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -29,6 +28,7 @@ from review.ai import AIReviewer
 
 # Utility modules
 from utils.logger import setup_logger
+from utils.twitter_service import TwitterService
 
 def main():
     """Run the complete Xinfluencer AI pipeline."""
@@ -132,20 +132,52 @@ def main():
 
         # Post to Twitter if there is at least one approved response
         if approved_count > 0:
-            try:
-                logger.info("Attempting to post 'Hello world' to Twitter...")
-                # Load credentials from environment
-                api_key = os.getenv('TWITTER_API_KEY')
-                api_secret = os.getenv('TWITTER_API_SECRET')
-                access_token = os.getenv('TWITTER_ACCESS_TOKEN')
-                access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-                
-                auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_token_secret)
-                api = tweepy.API(auth)
-                api.update_status("Hello world")
-                logger.info("Successfully posted 'Hello world' to Twitter.")
-            except Exception as e:
-                logger.error(f"Failed to post to Twitter: {e}")
+            logger.info("Testing Twitter posting with approved content...")
+            
+            # Initialize Twitter service
+            twitter_service = TwitterService()
+            
+            # Test connection first
+            connection_test = twitter_service.test_connection()
+            logger.info(f"Twitter connection test: {connection_test}")
+            
+            if connection_test["can_post"]:
+                try:
+                    # Get the best approved response for posting
+                    best_response = None
+                    best_score = 0
+                    
+                    for result in demo_results:
+                        if result["review_result"]["approved"] and result["review_result"]["overall_score"] > best_score:
+                            best_response = result["selfrag_result"]["best_response"]
+                            best_score = result["review_result"]["overall_score"]
+                    
+                    # If we have a good response, post it; otherwise post a test message
+                    if best_response and len(best_response) <= 280:
+                        tweet_text = best_response
+                        logger.info(f"Posting best approved response (score: {best_score:.1f})")
+                    else:
+                        tweet_text = "Hello from Xinfluencer AI! Testing our crypto analysis pipeline."
+                        logger.info("Posting test message")
+                    
+                    # Post the tweet
+                    post_result = twitter_service.post_tweet(tweet_text)
+                    
+                    if post_result["success"]:
+                        logger.info(f"Successfully posted tweet via {post_result['method']}!")
+                        logger.info(f"Tweet ID: {post_result['tweet_id']}")
+                        logger.info(f"Posted text: {post_result['text']}")
+                    else:
+                        logger.error(f"Failed to post tweet: {post_result.get('error', 'Unknown error')}")
+                        
+                except Exception as e:
+                    logger.error(f"Error during Twitter posting: {e}")
+            else:
+                logger.warning("Twitter connection not available for posting")
+                logger.info("Authentication status:")
+                auth_status = twitter_service.get_authentication_status()
+                for key, value in auth_status.items():
+                    logger.info(f"  {key}: {value}")
         
         avg_selfrag_score = sum(r["selfrag_result"]["best_score"] for r in demo_results) / len(demo_results)
         avg_review_score = sum(r["review_result"]["overall_score"] for r in demo_results) / len(demo_results)

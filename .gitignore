@@ -212,6 +212,15 @@ xinfluencer_env/
 .python-version
 # Ignore test results
 h200_test_results.json
+pipeline_test_results.json
+test_scraper_results.json
+kol_posts_test_*.json
+
+# Ignore test scripts (internal testing)
+scripts/test_*.py
+!scripts/test_full_pipeline_h200.py
+!scripts/test_vector_only.py
+
 # Ignore terraform state files
 .terraform/
 *.tfstate
@@ -219,3 +228,6 @@ h200_test_results.json
 # Ignore .env file
 .env
 scripts/test_twikit.py 
+
+# Soju AI persona file
+soju_identity.txt 

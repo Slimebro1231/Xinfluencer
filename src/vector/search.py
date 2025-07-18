@@ -135,6 +135,10 @@ class VectorSearcher:
             # Embed the query
             query_embedding = self.embedder.embed_text(query)
             
+            # Convert to numpy array if it's a list
+            if isinstance(query_embedding, list):
+                query_embedding = np.array(query_embedding)
+            
             if self.use_gpu and self.faiss_index:
                 # Use FAISS GPU search
                 results = self._search_faiss_gpu(query_embedding, top_k)
@@ -248,20 +252,33 @@ class VectorSearcher:
             similarities = []
             for item in all_data:
                 vector = np.array(item['vector'])
-                similarity = np.dot(vector, query_embedding) / (np.linalg.norm(vector) * np.linalg.norm(query_embedding))
+                # Compute cosine similarity
+                dot_product = np.dot(vector, query_embedding)
+                norm_vector = np.linalg.norm(vector)
+                norm_query = np.linalg.norm(query_embedding)
+                
+                if norm_vector > 0 and norm_query > 0:
+                    similarity = dot_product / (norm_vector * norm_query)
+                else:
+                    similarity = 0.0
+                
                 similarities.append((item['id'], similarity))
             
             # Sort by similarity
             similarities.sort(key=lambda x: x[1], reverse=True)
             
-            # Return top-k results
+            # Return top-k results with proper format
             results = []
             for i, (doc_id, score) in enumerate(similarities[:top_k]):
-                results.append({
-                    'id': doc_id,
-                    'score': float(score),
-                    'rank': i + 1
-                })
+                # Find the original data for this ID
+                original_data = next((item for item in all_data if item['id'] == doc_id), None)
+                if original_data:
+                    results.append({
+                        'text': original_data['payload']['text'],
+                        'score': float(score),
+                        'tweet_id': original_data['payload']['tweet_id'],
+                        'metadata': original_data['payload'].get('metadata', {})
+                    })
             
             return results
             

@@ -14,9 +14,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 logger = logging.getLogger(__name__)
 
 class H200TextGenerator:
-    """H200-optimized text generation using Mistral-7B."""
+    """H200-optimized text generation using Llama-3.1-8B-Instruct."""
     
-    def __init__(self, model_name: str = "mistralai/Mistral-7B-v0.1", use_quantization: bool = True):
+    def __init__(self, model_name: str = "meta-llama/Llama-3.1-8B-Instruct", use_quantization: bool = True):
         """Initialize the H200-optimized generation model."""
         self.model_name = model_name
         self.use_quantization = use_quantization
@@ -65,7 +65,7 @@ class H200TextGenerator:
                 logger.info("🔧 Using 4-bit quantization for memory efficiency")
             
             # Load model with H200 optimization
-            logger.info("🧠 Loading Mistral model (this may take a few minutes)...")
+            logger.info("🧠 Loading Llama-3.1 model (this may take a few minutes)...")
             load_start = time.time()
             
             self.model = AutoModelForCausalLM.from_pretrained(
@@ -98,7 +98,7 @@ class H200TextGenerator:
             self._fallback_model()
     
     def _fallback_model(self):
-        """Load a fallback model if Mistral fails."""
+        """Load a fallback model if Llama-3.1 fails."""
         try:
             logger.warning("🔄 Attempting fallback to smaller model...")
             fallback_model = "microsoft/DialoGPT-medium"
@@ -130,8 +130,10 @@ class H200TextGenerator:
             return "❌ Model not loaded properly"
         
         try:
-            # Format prompt for Mistral if needed
-            if "mistral" in self.model_name.lower():
+            # Format prompt for Llama-3.1 if needed
+            if "llama" in self.model_name.lower():
+                formatted_prompt = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n{prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+            elif "mistral" in self.model_name.lower():
                 formatted_prompt = f"<s>[INST] {prompt} [/INST]"
             else:
                 formatted_prompt = prompt
@@ -169,7 +171,13 @@ class H200TextGenerator:
             full_response = self.tokenizer.decode(outputs.sequences[0], skip_special_tokens=True)
             
             # Extract just the new generation
-            if "mistral" in self.model_name.lower():
+            if "llama" in self.model_name.lower():
+                # For Llama-3.1, extract content after assistant header
+                if "<|start_header_id|>assistant<|end_header_id|>" in full_response:
+                    response = full_response.split("<|start_header_id|>assistant<|end_header_id|>")[-1].strip()
+                else:
+                    response = full_response[len(formatted_prompt):].strip()
+            elif "mistral" in self.model_name.lower():
                 # For Mistral, extract content after [/INST]
                 if "[/INST]" in full_response:
                     response = full_response.split("[/INST]")[-1].strip()
@@ -194,6 +202,10 @@ class H200TextGenerator:
         except Exception as e:
             logger.error(f"❌ Generation failed: {e}")
             return f"❌ Error: {str(e)}"
+    
+    def generate_text(self, prompt: str, max_tokens: int = 100, temperature: float = 0.7) -> str:
+        """Alias for generate_response for compatibility."""
+        return self.generate_response(prompt, max_new_tokens=max_tokens, temperature=temperature)
     
     def generate_with_context(self, query: str, context: str, max_new_tokens: int = 100) -> str:
         """Generate response using retrieved context."""

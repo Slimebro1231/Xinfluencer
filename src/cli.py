@@ -28,7 +28,97 @@ from vector.embed import TextEmbedder
 from model.selfrag import SelfRAGGenerator
 from review.ai import AIReviewer
 from utils.logger import setup_logger
+from utils.twitter_service import TwitterService
 from config import Config
+
+def _handle_twitter_command(args):
+    """Handle Twitter-related commands."""
+    if not args.twitter_command:
+        print("Twitter command required. Use 'twitter test', 'twitter post <text>', or 'twitter status'")
+        return
+    
+    try:
+        # Initialize Twitter service
+        print("Initializing Twitter service...")
+        twitter_service = TwitterService()
+        
+        if args.twitter_command == 'status':
+            print("\nTwitter Authentication Status:")
+            print("=" * 40)
+            
+            auth_status = twitter_service.get_authentication_status()
+            print(f"OAuth 2.0 configured: {auth_status['oauth2_configured']}")
+            print(f"OAuth 1.0a configured: {auth_status['oauth1_configured']}")
+            print(f"Active v2 client: {auth_status['active_client']}")
+            print(f"Active v1.1 API: {auth_status['active_api']}")
+            
+            print("\nCredentials Available:")
+            creds = auth_status['credentials_available']
+            for cred_name, available in creds.items():
+                status = "✓" if available else "✗"
+                print(f"  {status} {cred_name}")
+        
+        elif args.twitter_command == 'test':
+            print("\nTesting Twitter API connection...")
+            print("=" * 40)
+            
+            connection_test = twitter_service.test_connection()
+            
+            print(f"OAuth 2.0 available: {connection_test['oauth2_available']}")
+            print(f"OAuth 1.0a available: {connection_test['oauth1_available']}")
+            print(f"Can post tweets: {connection_test['can_post']}")
+            
+            if connection_test['user_info']:
+                user = connection_test['user_info']
+                print(f"\nAuthenticated as:")
+                print(f"  Username: @{user['username']}")
+                print(f"  Name: {user['name']}")
+                print(f"  ID: {user['id']}")
+            
+            if connection_test['errors']:
+                print(f"\nErrors encountered:")
+                for error in connection_test['errors']:
+                    print(f"  - {error}")
+            
+            if connection_test['can_post']:
+                print("\n✓ Twitter API is ready for posting!")
+            else:
+                print("\n✗ Twitter API is not ready for posting")
+        
+        elif args.twitter_command == 'post':
+            if not args.text:
+                print("Tweet text is required for posting")
+                return
+            
+            print(f"\nPosting tweet: '{args.text[:50]}{'...' if len(args.text) > 50 else ''}'")
+            print("=" * 40)
+            
+            # Test connection first
+            connection_test = twitter_service.test_connection()
+            if not connection_test['can_post']:
+                print("✗ Cannot post - Twitter API not properly configured")
+                print("Run 'twitter test' for more details")
+                return
+            
+            # Post the tweet
+            result = twitter_service.post_tweet(args.text)
+            
+            if result['success']:
+                print(f"✓ Successfully posted tweet!")
+                print(f"  Method: {result['method']}")
+                print(f"  Tweet ID: {result['tweet_id']}")
+                print(f"  Text: {result['text']}")
+            else:
+                print(f"✗ Failed to post tweet: {result.get('error', 'Unknown error')}")
+        
+        else:
+            print(f"Unknown Twitter command: {args.twitter_command}")
+    
+    except Exception as e:
+        print(f"Error in Twitter command: {e}")
+        import traceback
+        traceback.print_exc()
+
 
 def _run_command(command: str, remote: bool, config: Config):
     """Helper to run a command locally or remotely via SSH."""
@@ -518,6 +608,11 @@ Examples:
   # Check GPU memory
   python cli.py memory
   
+  # Twitter API testing
+  python cli.py twitter status
+  python cli.py twitter test
+  python cli.py twitter post "Hello from Xinfluencer AI!"
+  
   # Interactive mode
   python cli.py interactive
   
@@ -570,6 +665,20 @@ Examples:
     # Control center command
     control_parser = subparsers.add_parser('control-center', help='Launch multi-panel control center')
     
+    # Twitter command
+    twitter_parser = subparsers.add_parser('twitter', help='Twitter API testing and posting')
+    twitter_subparsers = twitter_parser.add_subparsers(dest='twitter_command', help='Twitter commands')
+    
+    # Twitter test command
+    twitter_test_parser = twitter_subparsers.add_parser('test', help='Test Twitter API connection')
+    
+    # Twitter post command
+    twitter_post_parser = twitter_subparsers.add_parser('post', help='Post a tweet')
+    twitter_post_parser.add_argument('text', help='Tweet text to post')
+    
+    # Twitter status command
+    twitter_status_parser = twitter_subparsers.add_parser('status', help='Show Twitter authentication status')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -587,6 +696,11 @@ Examples:
             except Exception as e:
                 print(f"Failed to run scraper: {e}")
         return # Exit after data command is handled
+    
+    # Execute Twitter commands
+    if args.command == 'twitter':
+        _handle_twitter_command(args)
+        return
 
     # Handle control center command
     if args.command == 'control-center':

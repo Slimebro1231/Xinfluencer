@@ -23,10 +23,21 @@ class H200Config(BaseSettings):
 
 class TwitterConfig(BaseSettings):
     """Twitter API configuration."""
+    # Legacy OAuth 1.0a credentials (for v1.1 API)
+    api_key: Optional[str] = Field(default=None, alias="TWITTER_API_KEY")
+    api_secret: Optional[str] = Field(default=None, alias="TWITTER_API_SECRET")
+    access_token: Optional[str] = Field(default=None, alias="TWITTER_ACCESS_TOKEN")
+    access_token_secret: Optional[str] = Field(default=None, alias="TWITTER_ACCESS_TOKEN_SECRET")
+    
+    # New OAuth 2.0 credentials (for v2 API)
+    client_id: Optional[str] = Field(default=None, alias="TWITTER_CLIENT_ID")
+    client_secret: Optional[str] = Field(default=None, alias="TWITTER_CLIENT_SECRET")
+    bearer_token: Optional[str] = Field(default=None, alias="TWITTER_BEARER_TOKEN")
+    
+    # User context for OAuth 2.0
     username: Optional[str] = Field(default=None, alias="TWITTER_USERNAME")
     email: Optional[str] = Field(default=None, alias="TWITTER_EMAIL")
     password: Optional[str] = Field(default=None, alias="TWITTER_PASSWORD")
-    bearer_token: Optional[str] = Field(default=None, alias="TWITTER_BEARER_TOKEN")
     
     class Config:
         env_file = ".env"
@@ -46,7 +57,7 @@ class VectorDBConfig(BaseSettings):
 
 class ModelConfig(BaseSettings):
     """Model configuration."""
-    generation_model: str = Field(default="mistralai/Mistral-7B-v0.1", alias="GENERATION_MODEL")
+    generation_model: str = Field(default="meta-llama/Llama-3.1-8B-Instruct", alias="GENERATION_MODEL")
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="EMBEDDING_MODEL")
     
     class Config:

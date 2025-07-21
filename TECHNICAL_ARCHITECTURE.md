@@ -142,32 +142,75 @@ class VectorDB:
 
 ##4. Language Model & Generation
 
-### 4.1e Model
+### 4.1 Base Model
 
-**Current Choice: `mistralai/Mistral-70.1`**
+**Current Choice: `meta-llama/Llama-3.1-8B-Instruct`**
 
-**Why Mistral-7B?**
-- **Performance**: Outperforms Llama-2-13B on many benchmarks
-- **Size**: 7B parameters (manageable on H20*License**: Apache 20ercial use allowed)
-- **Quality**: Excellent reasoning and instruction following
-- **Context**: 8K token context window
+**Why Llama-3.1-8B?**
+- **Performance**: Latest Llama architecture with improved reasoning
+- **Size**: 8B parameters (optimized for H200)
+- **License**: Commercial use allowed with proper attribution
+- **Quality**: Excellent instruction following and reasoning
+- **Context**: 32K token context window (optimized for efficiency)
 
 **Technical Specifications:**
 - **Architecture**: Transformer with grouped-query attention
-- **Parameters**: 7.3B
-- **Context Length**: 8K tokens
-- **Training Data**: 32xt window training
+- **Parameters**: 8B
+- **Context Length**: 32K tokens
+- **Training Data**: Latest Llama training data
 
 **Memory Optimization:**
-- **4it Quantization**: Using `bitsandbytes`
-- **Memory Usage**: 12GB (vs 28 unquantized)
-- **Speed**: 50-10tokens/second
+- **4-bit Quantization**: Using `bitsandbytes`
+- **Memory Usage**: 12GB (vs 28GB unquantized)
+- **Speed**: 50-100 tokens/second
 - **Quality**: Minimal degradation with quantization
 
 **Fallback Strategy:**
-- **Primary**: Mistral-7B (quantized)
-- **Fallback**: DialoGPT-medium (10.5)
+- **Primary**: Llama-3.1-8B (quantized)
+- **Fallback**: DialoGPT-medium (10.5M)
 - **Emergency**: Rule-based generation
+
+### 4.2 Training Approach Comparison
+
+**Our Custom Approach vs LangChain Framework**
+
+| Aspect | LangChain | Our Approach | LoRA Training |
+|--------|-----------|--------------|---------------|
+| **Purpose** | Application framework | Custom AI system | Model training method |
+| **Training** | No model training | LoRA + DPO training | Parameter-efficient fine-tuning |
+| **Control** | High-level abstractions | Full model control | Direct weight updates |
+| **Customization** | Limited to framework | Complete customization | Model-specific adaptation |
+| **Performance** | Depends on base models | H200-optimized | Domain-specific improvement |
+| **Complexity** | Low (rapid prototyping) | High (full control) | Medium (training expertise) |
+
+**Key Differences:**
+
+**LangChain (Framework):**
+- **Pre-built components**: Chains, agents, memory, tools
+- **Prompt templates**: Structured prompt management  
+- **Vector store integrations**: Easy connections to various databases
+- **Agent frameworks**: Pre-built reasoning patterns
+- **High-level abstraction**: Focuses on application structure
+- **Rapid prototyping**: Quick to build complex workflows
+- **Less customization**: Limited control over underlying models
+- **Prompt-centric**: Relies heavily on prompt engineering
+
+**Our Custom Implementation:**
+- **Model-level control**: Direct access to model weights and training
+- **Custom algorithms**: SelfRAG, hybrid search, DPO training
+- **Hardware optimization**: H200-specific optimizations
+- **Fine-grained control**: Every component is customizable
+- **Domain expertise**: Crypto/finance specific training
+- **Performance control**: Direct control over every aspect
+
+**Why Our Approach is Different:**
+1. **Model Training**: We actually train the model with LoRA, while LangChain just uses pre-trained models
+2. **Hardware Optimization**: H200-specific optimizations vs generic framework
+3. **Custom Algorithms**: SelfRAG, hybrid search, DPO - not available in LangChain
+4. **Domain Expertise**: Crypto/finance specific training vs generic prompts
+5. **Performance Control**: Direct control over every aspect vs framework limitations
+
+Our system is more like building a custom sports car, while LangChain is like using a well-designed toolkit to modify existing vehicles.
 
 ### 4.2LoRA Fine-tuning
 
@@ -202,6 +245,85 @@ LoRAConfig(
 - **Daily micro-adapter**: Small updates based on recent data
 - **Weekly merge**: Combine daily adapters to prevent sprawl
 - **Monthly reset**: Start fresh to prevent drift
+
+**LoRA Data Requirements:**
+
+**Minimum Data Requirements:**
+- **Quantity**: 1,000-5,000 high-quality examples (minimum viable)
+- **Quality**: Well-defined, consistent format
+- **Diversity**: Multiple scenarios and edge cases
+- **Domain-specific**: Crypto/finance expertise
+
+**Optimal Data Characteristics:**
+- **10,000+ examples**: For robust adaptation
+- **Structured format**: Consistent input/output patterns
+- **Quality control**: Human-reviewed, high-engagement content
+- **Temporal relevance**: Recent market conditions and trends
+- **Engagement metrics**: Proven successful content
+
+**Data Quality Criteria:**
+1. **Consistency**: Same format, style, and structure
+2. **Relevance**: Domain-specific knowledge and terminology
+3. **Engagement**: High likes, retweets, replies
+4. **Authenticity**: Human-written, not bot-generated
+5. **Diversity**: Various topics, tones, and complexity levels
+
+**Structured Output Training:**
+
+**Benefits of Structured Output:**
+- **Parsable responses**: Easy to extract specific components
+- **Consistent format**: Predictable structure for downstream processing
+- **Better DPO training**: Clear preference signals for structured vs unstructured
+- **Q-learning compatibility**: Discrete action spaces for reward estimation
+- **Automated evaluation**: Programmatic quality assessment
+
+**Proposed Output Format:**
+```
+[AREA] Crypto Analysis
+[SOURCES] Bitcoin whitepaper, Coinbase data, expert tweets
+[RELEVANCE] Bitcoin halving impact on supply dynamics
+[MESSAGE] Bitcoin's upcoming halving will reduce daily supply by 50%, historically leading to price appreciation. Current market sentiment suggests strong accumulation phase.
+[ANTICIPATED_ENGAGEMENT] 1500 likes, 300 retweets
+[CONFIDENCE] 0.85
+[EVIDENCE_QUALITY] 0.92
+```
+
+**Training Implementation:**
+```python
+# Structured prompt template
+structured_prompt = """
+Generate a crypto analysis tweet in the following format:
+
+[AREA] <topic area>
+[SOURCES] <data sources>
+[RELEVANCE] <why this matters>
+[MESSAGE] <main content>
+[ANTICIPATED_ENGAGEMENT] <expected likes/retweets>
+[CONFIDENCE] <0.0-1.0>
+[EVIDENCE_QUALITY] <0.0-1.0>
+
+Query: {query}
+Context: {context}
+"""
+
+# DPO training with structured outputs
+def create_preference_pairs(structured_outputs):
+    """Create preference pairs for DPO training"""
+    pairs = []
+    for output in structured_outputs:
+        # High-quality structured output
+        preferred = output['structured_response']
+        # Unstructured baseline
+        rejected = output['unstructured_response']
+        pairs.append((preferred, rejected))
+    return pairs
+```
+
+**Q-Learning Integration:**
+- **Discrete actions**: Each output component becomes a discrete choice
+- **Reward estimation**: Parse engagement metrics from structured output
+- **State representation**: Current market conditions, user context
+- **Policy improvement**: DPO updates based on structured vs unstructured preferences
 
 ## 5. Self-RAG Implementation
 

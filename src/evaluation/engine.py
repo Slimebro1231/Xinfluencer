@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import json
 import random
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -155,43 +156,162 @@ class MultiDimensionalEvaluator:
     
     def evaluate_factual_accuracy(self, response: str, context: Dict) -> float:
         """Evaluate factual accuracy against trusted sources."""
-        # TODO: Implement fact checking against trusted sources
-        # For now, return random score between 0.7-0.9
-        return random.uniform(0.7, 0.9)
+        # Enhanced fact checking with multiple signals
+        trusted_sources = context.get('sources', [])
+        response_lower = response.lower()
+        
+        # Check for specific factual claims
+        factual_indicators = {
+            'specific_numbers': len(re.findall(r'\d+', response)),
+            'technical_terms': len(re.findall(r'\b(blockchain|hash|mining|staking|defi|smart contract|tokenomics)\b', response_lower)),
+            'source_mentions': sum(1 for source in trusted_sources if source.lower() in response_lower),
+            'date_references': len(re.findall(r'\b(202[0-9]|202[0-9])\b', response)),
+            'percentage_claims': len(re.findall(r'\d+%', response))
+        }
+        
+        # Calculate factual score based on indicators
+        total_indicators = sum(factual_indicators.values())
+        if total_indicators == 0:
+            return 0.5  # Neutral if no factual indicators
+        
+        # Weight different indicators
+        weighted_score = (
+            0.3 * min(factual_indicators['specific_numbers'] / 3, 1.0) +
+            0.3 * min(factual_indicators['technical_terms'] / 5, 1.0) +
+            0.2 * min(factual_indicators['source_mentions'] / 2, 1.0) +
+            0.1 * min(factual_indicators['date_references'] / 2, 1.0) +
+            0.1 * min(factual_indicators['percentage_claims'] / 2, 1.0)
+        )
+        
+        return min(weighted_score, 1.0)
     
     def evaluate_relevance(self, response: str, context: Dict) -> float:
         """Evaluate relevance to crypto/finance domain."""
-        crypto_keywords = ['bitcoin', 'ethereum', 'crypto', 'blockchain', 'defi', 'token', 'mining', 'staking']
-        response_lower = response.lower()
+        # Enhanced relevance scoring with weighted keywords
+        crypto_keywords = {
+            'high_weight': ['bitcoin', 'ethereum', 'crypto', 'blockchain', 'defi', 'token'],
+            'medium_weight': ['mining', 'staking', 'smart contract', 'wallet', 'exchange'],
+            'low_weight': ['price', 'market', 'investment', 'trading', 'altcoin']
+        }
         
-        keyword_count = sum(1 for keyword in crypto_keywords if keyword in response_lower)
-        return min(keyword_count / len(crypto_keywords), 1.0)
+        response_lower = response.lower()
+        total_score = 0
+        max_possible = 0
+        
+        for weight, keywords in crypto_keywords.items():
+            weight_value = {'high_weight': 1.0, 'medium_weight': 0.7, 'low_weight': 0.4}[weight]
+            keyword_count = sum(1 for keyword in keywords if keyword in response_lower)
+            total_score += keyword_count * weight_value
+            max_possible += len(keywords) * weight_value
+        
+        if max_possible == 0:
+            return 0.0
+        
+        return min(total_score / max_possible, 1.0)
     
     def evaluate_clarity(self, response: str, context: Dict) -> float:
         """Evaluate clarity and readability."""
-        # Simple heuristics for clarity
-        sentences = response.split('.')
-        avg_sentence_length = np.mean([len(s.split()) for s in sentences if s.strip()])
+        # Enhanced clarity scoring with multiple factors
+        sentences = [s.strip() for s in response.split('.') if s.strip()]
+        if not sentences:
+            return 0.0
         
-        # Prefer sentences between 10-20 words
+        # Sentence length analysis
+        sentence_lengths = [len(s.split()) for s in sentences]
+        avg_sentence_length = np.mean(sentence_lengths)
+        
+        # Length score (prefer 10-20 words)
         if 10 <= avg_sentence_length <= 20:
-            return 1.0
+            length_score = 1.0
         elif 5 <= avg_sentence_length <= 25:
-            return 0.8
+            length_score = 0.8
         else:
-            return 0.6
+            length_score = 0.6
+        
+        # Readability score (Flesch Reading Ease approximation)
+        word_count = sum(sentence_lengths)
+        syllable_count = sum(len(re.findall(r'[aeiouy]+', word.lower())) for word in response.split())
+        
+        if word_count > 0:
+            flesch_score = 206.835 - (1.015 * avg_sentence_length) - (84.6 * syllable_count / word_count)
+            readability_score = max(0, min(1, flesch_score / 100))
+        else:
+            readability_score = 0.5
+        
+        # Structure score (paragraphs, bullet points, etc.)
+        structure_indicators = len(re.findall(r'\n|•|\*|\-', response))
+        structure_score = min(structure_indicators / 3, 1.0)
+        
+        # Combined clarity score
+        clarity_score = (0.4 * length_score + 0.4 * readability_score + 0.2 * structure_score)
+        
+        return clarity_score
     
     def evaluate_originality(self, response: str, context: Dict) -> float:
         """Evaluate originality vs existing content."""
-        # TODO: Compare against existing content database
-        # For now, return random score
-        return random.uniform(0.6, 0.9)
+        # Enhanced originality scoring with multiple signals
+        similar_content = context.get('similar_content', [])
+        
+        # Calculate similarity with existing content
+        if similar_content:
+            similarities = []
+            for existing in similar_content:
+                # Simple Jaccard similarity
+                response_words = set(response.lower().split())
+                existing_words = set(existing.lower().split())
+                
+                if response_words and existing_words:
+                    intersection = response_words.intersection(existing_words)
+                    union = response_words.union(existing_words)
+                    similarity = len(intersection) / len(union)
+                    similarities.append(similarity)
+            
+            max_similarity = max(similarities) if similarities else 0
+            originality_score = 1.0 - max_similarity
+        else:
+            # If no similar content provided, use heuristics
+            # Check for unique phrases and technical depth
+            unique_phrases = len(set(response.split()))
+            total_words = len(response.split())
+            
+            if total_words > 0:
+                uniqueness_ratio = unique_phrases / total_words
+                originality_score = min(uniqueness_ratio * 1.2, 1.0)  # Boost slightly
+            else:
+                originality_score = 0.5
+        
+        return originality_score
     
     def evaluate_timing_relevance(self, response: str, context: Dict) -> float:
         """Evaluate relevance to current market conditions."""
-        # TODO: Compare against current market data
-        # For now, return random score
-        return random.uniform(0.7, 0.9)
+        # Enhanced timing relevance with market context
+        market_conditions = context.get('market_conditions', {})
+        current_trends = context.get('current_trends', [])
+        
+        response_lower = response.lower()
+        timing_score = 0.5  # Base score
+        
+        # Check for current market references
+        if market_conditions:
+            # Check for current price levels, market cap, etc.
+            price_indicators = ['price', 'market cap', 'volume', 'market']
+            price_matches = sum(1 for indicator in price_indicators if indicator in response_lower)
+            if price_matches > 0:
+                timing_score += 0.2
+        
+        # Check for current trends
+        if current_trends:
+            trend_matches = sum(1 for trend in current_trends if trend.lower() in response_lower)
+            if trend_matches > 0:
+                timing_score += 0.2
+        
+        # Check for temporal indicators
+        temporal_indicators = ['recent', 'latest', 'current', 'now', 'today', 'this week']
+        temporal_matches = sum(1 for indicator in temporal_indicators if indicator in response_lower)
+        if temporal_matches > 0:
+            timing_score += 0.1
+        
+        return min(timing_score, 1.0)
 
 class TrainingSignalEnhancer:
     """Enhanced training signal generation."""
@@ -409,7 +529,13 @@ class EvaluationEngine:
             try:
                 with open(self.results_file, 'r') as f:
                     data = json.load(f)
-                    self.ab_evaluator.results = [EvaluationResult(**r) for r in data]
+                    results = []
+                    for r in data:
+                        # Convert timestamp string back to datetime
+                        if 'timestamp' in r and isinstance(r['timestamp'], str):
+                            r['timestamp'] = datetime.fromisoformat(r['timestamp'])
+                        results.append(EvaluationResult(**r))
+                    self.ab_evaluator.results = results
                 logger.info(f"Loaded {len(self.ab_evaluator.results)} previous results")
             except Exception as e:
                 logger.error(f"Failed to load results: {e}")

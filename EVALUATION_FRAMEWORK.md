@@ -8,7 +8,7 @@ This document addresses the critical challenge of measuring incremental improvem
 
 ### API Tiers & Restrictions
 
-**Basic Plan ($100/month):**
+**Basic Plan ($200/month):**
 - **Rate Limits**: 2,000,000 requests/month
 - **Search API**: 500 requests/15 minutes
 - **User Lookup**: 100 requests/15 minutes

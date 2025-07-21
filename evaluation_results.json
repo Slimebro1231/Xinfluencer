@@ -143,5 +143,150 @@
     },
     "engagement_metrics": null,
     "timestamp": "2025-07-21T11:09:34.172108"
+  },
+  {
+    "prompt": "How does staking work in crypto?",
+    "baseline_response": "Baseline response to: How does staking work in crypto?",
+    "experimental_response": "Experimental response to: How does staking work in crypto?",
+    "human_preference": null,
+    "human_confidence": null,
+    "human_reasoning": null,
+    "ai_evaluation": {
+      "baseline": {
+        "factual_accuracy": 0.06,
+        "relevance_score": 0.14782608695652175,
+        "clarity_score": 0.5092000000000002,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.44340521739130434
+      },
+      "experimental": {
+        "factual_accuracy": 0.06,
+        "relevance_score": 0.14782608695652175,
+        "clarity_score": 0.47160000000000024,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.43588521739130437
+      },
+      "improvement": -0.007519999999999971
+    },
+    "engagement_metrics": null,
+    "timestamp": "2025-07-21T11:12:46.475659"
+  },
+  {
+    "prompt": "How do smart contracts work?",
+    "baseline_response": "Baseline response to: How do smart contracts work?",
+    "experimental_response": "Experimental response to: How do smart contracts work?",
+    "human_preference": null,
+    "human_confidence": null,
+    "human_reasoning": null,
+    "ai_evaluation": {
+      "baseline": {
+        "factual_accuracy": 0.5,
+        "relevance_score": 0.0608695652173913,
+        "clarity_score": 0.5226600000000001,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.5167059130434783
+      },
+      "experimental": {
+        "factual_accuracy": 0.5,
+        "relevance_score": 0.0608695652173913,
+        "clarity_score": 0.4803600000000001,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.5082459130434783
+      },
+      "improvement": -0.008460000000000023
+    },
+    "engagement_metrics": null,
+    "timestamp": "2025-07-21T11:12:46.475668"
+  },
+  {
+    "prompt": "Explain the difference between Bitcoin and Ethereum",
+    "baseline_response": "Baseline response to: Explain the difference between Bitcoin and Ethereum",
+    "experimental_response": "Experimental response to: Explain the difference between Bitcoin and Ethereum",
+    "human_preference": null,
+    "human_confidence": null,
+    "human_reasoning": null,
+    "ai_evaluation": {
+      "baseline": {
+        "factual_accuracy": 0.5,
+        "relevance_score": 0.17391304347826086,
+        "clarity_score": 0.4084200000000001,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.5164666086956522
+      },
+      "experimental": {
+        "factual_accuracy": 0.5,
+        "relevance_score": 0.17391304347826086,
+        "clarity_score": 0.4,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.5147826086956522
+      },
+      "improvement": -0.0016840000000000188
+    },
+    "engagement_metrics": null,
+    "timestamp": "2025-07-21T11:12:46.475677"
+  },
+  {
+    "prompt": "What are the risks of investing in crypto?",
+    "baseline_response": "Baseline response to: What are the risks of investing in crypto?",
+    "experimental_response": "Experimental response to: What are the risks of investing in crypto?",
+    "human_preference": null,
+    "human_confidence": null,
+    "human_reasoning": null,
+    "ai_evaluation": {
+      "baseline": {
+        "factual_accuracy": 0.5,
+        "relevance_score": 0.08695652173913043,
+        "clarity_score": 0.5674072727272729,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.5308727588932807
+      },
+      "experimental": {
+        "factual_accuracy": 0.5,
+        "relevance_score": 0.08695652173913043,
+        "clarity_score": 0.5366436363636364,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.5247200316205534
+      },
+      "improvement": -0.00615272727272731
+    },
+    "engagement_metrics": null,
+    "timestamp": "2025-07-21T11:12:46.475685"
+  },
+  {
+    "prompt": "How does DeFi lending work?",
+    "baseline_response": "Baseline response to: How does DeFi lending work?",
+    "experimental_response": "Experimental response to: How does DeFi lending work?",
+    "human_preference": null,
+    "human_confidence": null,
+    "human_reasoning": null,
+    "ai_evaluation": {
+      "baseline": {
+        "factual_accuracy": 0.06,
+        "relevance_score": 0.08695652173913043,
+        "clarity_score": 0.4803600000000001,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.4254633043478261
+      },
+      "experimental": {
+        "factual_accuracy": 0.06,
+        "relevance_score": 0.08695652173913043,
+        "clarity_score": 0.4380600000000001,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.4170033043478261
+      },
+      "improvement": -0.008459999999999968
+    },
+    "engagement_metrics": null,
+    "timestamp": "2025-07-21T11:12:46.475693"
   }
 ]

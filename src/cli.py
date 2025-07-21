@@ -29,6 +29,9 @@ from model.selfrag import SelfRAGGenerator
 from review.ai import AIReviewer
 from utils.logger import setup_logger
 from utils.twitter_service import TwitterService
+from utils.x_api_client import XAPIClient
+from utils.data_collection_pipeline import DataCollectionPipeline
+from utils.engagement_tracker import EngagementTracker
 from config import Config
 
 def _handle_twitter_command(args):
@@ -583,41 +586,173 @@ class XinfluencerCLI:
             self.generator.clear_memory()
             self.logger.info("GPU memory cleared")
 
+def _handle_x_api_command(args):
+    """Handle X API data collection commands."""
+    if not args.x_api_command:
+        print("X API command required. Use 'x-api test', 'x-api collect', or 'x-api track'")
+        return
+    
+    try:
+        if args.x_api_command == 'test':
+            print("\nTesting X API connection...")
+            print("=" * 40)
+            
+            x_api = XAPIClient()
+            connection_test = x_api.test_connection()
+            
+            print(f"Connected: {connection_test['connected']}")
+            print(f"Capabilities: {', '.join(connection_test['capabilities'])}")
+            
+            if connection_test['errors']:
+                print(f"\nErrors:")
+                for error in connection_test['errors']:
+                    print(f"  - {error}")
+            
+            # Show rate limits
+            rate_limits = x_api.get_rate_limit_status()
+            print(f"\nRate Limits:")
+            for endpoint, status in rate_limits.items():
+                if isinstance(status, dict) and 'remaining' in status:
+                    print(f"  {endpoint}: {status['remaining']}/{status['limit']} remaining")
+        
+        elif args.x_api_command == 'collect':
+            print("\nStarting data collection...")
+            print("=" * 40)
+            
+            pipeline = DataCollectionPipeline()
+            
+            # Run comprehensive collection
+            results = pipeline.run_comprehensive_collection(
+                kol_usernames=getattr(args, 'kols', None),
+                collect_trending=not getattr(args, 'no_trending', False),
+                collect_high_engagement=not getattr(args, 'no_high_engagement', False)
+            )
+            
+            print(f"\nCollection Results:")
+            print(f"KOLs processed: {len(results['kol_data'])}")
+            print(f"Trending tweets: {len(results['trending_tweets'])}")
+            print(f"High-engagement tweets: {len(results['high_engagement_tweets'])}")
+            print(f"Total API calls: {results['collection_stats']['api_calls_made']}")
+            print(f"Errors: {results['collection_stats']['errors']}")
+        
+        elif args.x_api_command == 'kol-analysis':
+            print("\nRunning KOL performance analysis...")
+            print("=" * 40)
+            
+            pipeline = DataCollectionPipeline()
+            analysis = pipeline.get_kol_performance_analysis(
+                usernames=getattr(args, 'kols', None)
+            )
+            
+            if analysis:
+                print(f"\nKOL Analysis Results:")
+                for username, data in analysis.items():
+                    print(f"\n@{username}:")
+                    print(f"  Total tweets: {data['total_tweets']}")
+                    print(f"  Avg engagement: {data['avg_engagement_per_tweet']:.1f}")
+                    print(f"  Crypto engagement ratio: {data['crypto_engagement_ratio']:.2%}")
+            else:
+                print("No analysis data available")
+        
+        elif args.x_api_command == 'track':
+            print("\nStarting engagement tracking...")
+            print("=" * 40)
+            
+            tracker = EngagementTracker()
+            
+            if hasattr(args, 'tweet_ids') and args.tweet_ids:
+                # Track specific tweets
+                tweet_ids = args.tweet_ids.split(',')
+                for tweet_id in tweet_ids:
+                    success = tracker.start_tracking_tweet(tweet_id.strip())
+                    print(f"Tracking tweet {tweet_id}: {'✓' if success else '✗'}")
+            else:
+                print("No tweet IDs provided for tracking")
+                print("Usage: x-api track --tweet-ids 1234567890,0987654321")
+        
+        elif args.x_api_command == 'status':
+            print("\nX API and Tracking Status:")
+            print("=" * 40)
+            
+            # X API status
+            x_api = XAPIClient()
+            api_status = x_api.get_rate_limit_status()
+            print(f"API Connected: {api_status.get('api_connected', False)}")
+            print(f"Auth Type: {api_status.get('auth_type', 'none')}")
+            
+            # Data collection status
+            pipeline = DataCollectionPipeline()
+            collection_stats = pipeline.get_collection_statistics()
+            print(f"\nCollection Stats:")
+            print(f"Tweets collected: {collection_stats['tweets_collected']}")
+            print(f"KOLs processed: {collection_stats['kols_processed']}")
+            print(f"API calls made: {collection_stats['api_calls_made']}")
+            
+            # Engagement tracking status
+            tracker = EngagementTracker()
+            tracking_status = tracker.get_tracking_status()
+            print(f"\nEngagement Tracking:")
+            print(f"Active tracking: {tracking_status['active_tracking']}")
+            print(f"Total tracked: {tracking_status['total_tracked']}")
+            print(f"Recent snapshots (1h): {tracking_status['recent_snapshots_1h']}")
+        
+        elif args.x_api_command == 'top-tweets':
+            print("\nTop Performing Tweets:")
+            print("=" * 40)
+            
+            tracker = EngagementTracker()
+            top_tweets = tracker.get_top_performing_tweets(
+                limit=getattr(args, 'limit', 10)
+            )
+            
+            if top_tweets:
+                for i, tweet in enumerate(top_tweets, 1):
+                    print(f"\n{i}. @{tweet['author_username']}")
+                    print(f"   {tweet['tweet_text']}")
+                    print(f"   Peak engagement: {tweet['max_total_engagement']}")
+                    print(f"   Avg velocity: {tweet['avg_velocity']:.1f}/hr")
+            else:
+                print("No tracked tweets found")
+        
+        else:
+            print(f"Unknown X API command: {args.x_api_command}")
+    
+    except Exception as e:
+        print(f"Error in X API command: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Xinfluencer AI CLI - Advanced AI system for crypto influencer analysis",
+        description="Xinfluencer AI CLI - Complete AI system for crypto content analysis and generation",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Generate a simple response
-  python cli.py generate "What's the latest trend in crypto?"
-  
-  # Scrape seed data from the web
-  python cli.py data scrape
-  
-  # Scrape seed data remotely on the H200 server
-  python cli.py data scrape --remote
+  # Generate text
+  %(prog)s generate "What is Bitcoin?" --temperature 0.8
 
-  # Generate with Self-RAG
-  python cli.py rag "How should I invest in Bitcoin?"
-  
-  # Review a response
-  python cli.py review "What's Bitcoin?" "Bitcoin is a cryptocurrency" "Bitcoin context..."
-  
-  # Check GPU memory
-  python cli.py memory
-  
-  # Twitter API testing
-  python cli.py twitter status
-  python cli.py twitter test
-  python cli.py twitter post "Hello from Xinfluencer AI!"
-  
+  # Run RAG query
+  %(prog)s rag "Latest DeFi trends" --max-results 5
+
+  # Review content
+  %(prog)s review "Bitcoin will reach 100k by 2024"
+
+  # Twitter operations
+  %(prog)s twitter test
+  %(prog)s twitter post "Hello from Xinfluencer AI!"
+
+  # X API data collection
+  %(prog)s x-api test
+  %(prog)s x-api collect --kols VitalikButerin,elonmusk
+  %(prog)s x-api track --tweet-ids 1234567890,0987654321
+
   # Interactive mode
-  python cli.py interactive
-  
-  # Control center (multi-panel monitoring)
-  python cli.py control-center
+  %(prog)s interactive
+
+  # Remote execution
+  %(prog)s generate "What is Ethereum?" --remote --model llama
         """
     )
     
@@ -679,6 +814,34 @@ Examples:
     # Twitter status command
     twitter_status_parser = twitter_subparsers.add_parser('status', help='Show Twitter authentication status')
     
+    # X API commands
+    x_api_parser = subparsers.add_parser('x-api', help='X API data collection and tracking')
+    x_api_subparsers = x_api_parser.add_subparsers(dest='x_api_command', help='X API command')
+    
+    # X API test
+    x_api_test_parser = x_api_subparsers.add_parser('test', help='Test X API connection')
+    
+    # X API collect
+    x_api_collect_parser = x_api_subparsers.add_parser('collect', help='Collect data from X API')
+    x_api_collect_parser.add_argument('--kols', nargs='+', help='Specific KOL usernames to collect from')
+    x_api_collect_parser.add_argument('--no-trending', action='store_true', help='Skip trending tweets collection')
+    x_api_collect_parser.add_argument('--no-high-engagement', action='store_true', help='Skip high-engagement tweets collection')
+    
+    # X API KOL analysis
+    x_api_kol_parser = x_api_subparsers.add_parser('kol-analysis', help='Analyze KOL performance')
+    x_api_kol_parser.add_argument('--kols', nargs='+', help='Specific KOL usernames to analyze')
+    
+    # X API tracking
+    x_api_track_parser = x_api_subparsers.add_parser('track', help='Track tweet engagement')
+    x_api_track_parser.add_argument('--tweet-ids', help='Comma-separated tweet IDs to track')
+    
+    # X API status
+    x_api_status_parser = x_api_subparsers.add_parser('status', help='Show X API and tracking status')
+    
+    # X API top tweets
+    x_api_top_parser = x_api_subparsers.add_parser('top-tweets', help='Show top performing tweets')
+    x_api_top_parser.add_argument('--limit', type=int, default=10, help='Number of top tweets to show')
+
     args = parser.parse_args()
     
     if not args.command:
@@ -706,6 +869,11 @@ Examples:
     if args.command == 'control-center':
         control_center = ControlCenter()
         control_center.run()
+        return
+
+    # Execute X API commands
+    if args.command == 'x-api':
+        _handle_x_api_command(args)
         return
 
     # Initialize components if needed

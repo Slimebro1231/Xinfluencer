@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class TextGenerator:
     """Text generation using causal language models optimized for H200 GPU."""
     
-    def __init__(self, model_name: str = "mistralai/Mistral-7B-v0.1", use_quantization: bool = True):
+    def __init__(self, model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct", use_quantization: bool = True):
         """Initialize the generation model with H200 optimization."""
         self.model_name = model_name
         self.use_quantization = use_quantization
@@ -79,8 +79,8 @@ class TextGenerator:
                 
         except Exception as e:
             logger.error(f"Failed to load {model_name}: {e}")
-            logger.info("Falling back to DialoGPT-medium")
-            self.model_name = "microsoft/DialoGPT-medium"
+            logger.info("Falling back to GPT-2")
+            self.model_name = "gpt2"
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
             self.model.to(self.device)
         
@@ -142,10 +142,10 @@ class TextGenerator:
             return f"Error generating response: {str(e)}"
     
     def generate_with_context(self, query: str, context: str, max_new_tokens: int = 100) -> str:
-        """Generate response using retrieved context with Mistral-7B formatting."""
-        # Create prompt with context using Mistral-7B format
-        if "mistral" in self.model_name.lower():
-            prompt = f"<s>[INST] Context: {context}\n\nQuestion: {query} [/INST]"
+        """Generate response using retrieved context with Llama 3.1 formatting."""
+        # Create prompt with context using Llama 3.1 format
+        if "llama" in self.model_name.lower() and "instruct" in self.model_name.lower():
+            prompt = f"<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\nContext: {context}\n\nQuestion: {query}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
         else:
             prompt = f"Context: {context}\n\nQuestion: {query}\n\nAnswer:"
         

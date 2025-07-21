@@ -1,4 +1,4 @@
-# H200 Mistral Deployment Requirements - Streamlined
+# H200 Llama 3.1 8B Deployment Requirements - Streamlined
 # This file contains only essential dependencies to avoid conflicts
 
 # Core ML libraries - specific versions that work well together

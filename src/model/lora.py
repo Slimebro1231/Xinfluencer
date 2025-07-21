@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class LoRAFineTuner:
     """LoRA fine-tuning for language models."""
     
-    def __init__(self, model_name: str = "microsoft/DialoGPT-medium"):
+    def __init__(self, model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"):
         """Initialize LoRA fine-tuner."""
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -30,7 +30,7 @@ class LoRAFineTuner:
             r=16,  # Rank
             lora_alpha=32,  # Alpha parameter
             lora_dropout=0.1,
-            target_modules=["c_attn", "c_proj"]  # Safe for DialoGPT
+            target_modules=["q_proj", "v_proj", "k_proj", "o_proj"]  # Target modules for Llama
         )
         
         self.peft_model = None

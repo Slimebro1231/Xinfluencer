@@ -1,0 +1,101 @@
+{
+  "gpu": {
+    "available": true,
+    "count": 1,
+    "name": "NVIDIA H200",
+    "memory_gb": 150.110273536
+  },
+  "multi_dimensional": {
+    "status": "success",
+    "scores": {
+      "factual_accuracy": 0.06,
+      "relevance_score": 0.2608695652173913,
+      "clarity_score": 0.4,
+      "originality_score": 1.0,
+      "timing_relevance": 0.5,
+      "overall_score": 0.4441739130434783
+    }
+  },
+  "training_signal": {
+    "status": "success",
+    "signal": 0.8599999999999999
+  },
+  "statistical_analysis": {
+    "status": "success",
+    "distribution": {
+      "total_comparisons": 8,
+      "preference_counts": {
+        "A": 4,
+        "B": 4
+      },
+      "preference_percentages": {
+        "A": 50.0,
+        "B": 50.0
+      },
+      "statistical_significance": {
+        "significant": false,
+        "reason": "Insufficient sample size"
+      }
+    },
+    "significance": {
+      "significant": false,
+      "reason": "Insufficient sample size"
+    }
+  },
+  "model_integration": {
+    "status": "success",
+    "response_length": 221,
+    "model_used": "gpt2_fallback"
+  },
+  "vector_database": {
+    "status": "success",
+    "documents_added": 3,
+    "search_results": 2
+  },
+  "full_evaluation": {
+    "status": "success",
+    "results": {
+      "summary": {
+        "total_comparisons": 15,
+        "with_human_feedback": 0,
+        "with_ai_evaluation": 15
+      },
+      "preference_analysis": {
+        "error": "No human preferences available"
+      },
+      "improvement_trend": {
+        "error": "Insufficient AI evaluation data"
+      },
+      "signal_analysis": {
+        "immediate_signals": [],
+        "delayed_signals": [],
+        "total_immediate": 0,
+        "total_delayed": 0
+      }
+    },
+    "analysis": {
+      "summary": {
+        "total_comparisons": 15,
+        "with_human_feedback": 0,
+        "with_ai_evaluation": 15
+      },
+      "preference_analysis": {
+        "error": "No human preferences available"
+      },
+      "improvement_trend": {
+        "error": "Insufficient AI evaluation data"
+      },
+      "signal_analysis": {
+        "immediate_signals": [],
+        "delayed_signals": [],
+        "total_immediate": 0,
+        "total_delayed": 0
+      }
+    }
+  },
+  "performance": {
+    "status": "success",
+    "avg_evaluation_time": 4.787445068359375e-05,
+    "evaluations_per_second": 20887.96812749004
+  }
+}

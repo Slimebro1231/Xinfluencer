@@ -199,7 +199,7 @@ try:
     print('Testing Mistral model loading...')
     
     # Initialize with quantization for memory efficiency
-    generator = TextGenerator(model_name='mistralai/Mistral-7B-v0.1', use_quantization=True)
+    generator = TextGenerator(model_name='meta-llama/Meta-Llama-3.1-8B-Instruct', use_quantization=True)
     print('✅ Mistral model loaded successfully')
     
     # Test generation
@@ -252,7 +252,7 @@ def test_mistral_basic():
         start_time = time.time()
         
         generator = TextGenerator(
-            model_name="mistralai/Mistral-7B-v0.1",
+            model_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
             use_quantization=True
         )
         

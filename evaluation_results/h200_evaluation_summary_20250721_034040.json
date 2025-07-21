@@ -1,0 +1,88 @@
+{
+  "timestamp": "2025-07-21T03:40:40.199436",
+  "total_tests": 8,
+  "passed_tests": 4,
+  "failed_tests": 4,
+  "success_rate": 0.5,
+  "test_results": {
+    "gpu": {
+      "available": true,
+      "count": 1,
+      "name": "NVIDIA H200",
+      "memory_gb": 150.110273536
+    },
+    "multi_dimensional": {
+      "status": "success",
+      "scores": {
+        "factual_accuracy": 0.06,
+        "relevance_score": 0.2608695652173913,
+        "clarity_score": 0.4,
+        "originality_score": 1.0,
+        "timing_relevance": 0.5,
+        "overall_score": 0.4441739130434783
+      }
+    },
+    "training_signal": {
+      "status": "success",
+      "signal": 0.8599999999999999
+    },
+    "statistical_analysis": {
+      "status": "failed",
+      "error": "'str' object has no attribute 'human_preference'"
+    },
+    "model_integration": {
+      "status": "failed",
+      "error": "data did not match any variant of untagged enum PyPreTokenizerTypeWrapper at line 40 column 3"
+    },
+    "vector_database": {
+      "status": "failed",
+      "error": "'VectorDB' object has no attribute 'add_document'"
+    },
+    "full_evaluation": {
+      "status": "success",
+      "results": {
+        "summary": {
+          "total_comparisons": 3,
+          "with_human_feedback": 0,
+          "with_ai_evaluation": 3
+        },
+        "preference_analysis": {
+          "error": "No human preferences available"
+        },
+        "improvement_trend": {
+          "error": "Insufficient data for trend analysis"
+        },
+        "signal_analysis": {
+          "immediate_signals": [],
+          "delayed_signals": [],
+          "total_immediate": 0,
+          "total_delayed": 0
+        }
+      },
+      "analysis": {
+        "summary": {
+          "total_comparisons": 3,
+          "with_human_feedback": 0,
+          "with_ai_evaluation": 3
+        },
+        "preference_analysis": {
+          "error": "No human preferences available"
+        },
+        "improvement_trend": {
+          "error": "Insufficient data for trend analysis"
+        },
+        "signal_analysis": {
+          "immediate_signals": [],
+          "delayed_signals": [],
+          "total_immediate": 0,
+          "total_delayed": 0
+        }
+      }
+    },
+    "performance": {
+      "status": "success",
+      "avg_evaluation_time": 4.167556762695313e-05,
+      "evaluations_per_second": 23994.87414187643
+    }
+  }
+}

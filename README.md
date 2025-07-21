@@ -8,7 +8,7 @@ A self-learning AI agent that analyzes and generates crypto content using advanc
 
 **Self-Reflective AI**: Our agent doesn't just generate content—it critiques and improves its own work through Self-RAG (Retrieval-Augmented Generation). Before posting, the AI retrieves relevant context, drafts content, then re-retrieves and critiques its own output for accuracy and relevance.
 
-**Multi-Signal Quality Control**: Content quality is evaluated through three independent channels: human review, AI peer review using raw GPT-4, and real Twitter engagement metrics. This triangulation ensures consistent quality while maintaining authenticity.
+**Multi-Signal Quality Control**: Content quality is evaluated through three independent channels: human review, AI peer review using raw GPT-4o, and real Twitter engagement metrics. This triangulation ensures consistent quality while maintaining authenticity.
 
 **Domain-Specific Expertise**: Focused specifically on cryptocurrency and Real World Assets (RWA), the system builds deep expertise through curated knowledge from trusted Key Opinion Leaders (KOLs) in the space.
 
@@ -27,7 +27,7 @@ When generating new content, the AI:
 ### 3. Multi-Channel Evaluation
 Every piece of content is evaluated through:
 - **Human Review**: Expert oversight during early phases
-- **AI Peer Review**: Automated critique using raw GPT-4
+- **AI Peer Review**: Automated critique using raw GPT-4o
 - **Engagement Metrics**: Real Twitter performance data
 
 ### 4. Continuous Improvement

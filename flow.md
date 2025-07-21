@@ -28,7 +28,7 @@ flowchart TD
     end
 
     %% ========== GENERATION & SELF‑CRITIQUE ==========
-    CONTEXT --> LLM["LLM (Mistral‑7B)<br/>+ Daily LoRA"]
+    CONTEXT --> LLM["LLM (Llama 3.1 8B)<br/>+ Daily LoRA"]
     LLM --> SELF["Self‑RAG<br/>(re‑retrieve + critique)"]
     SELF --> DRAFT["Draft Tweet"]
 
@@ -140,7 +140,7 @@ Only messages passing **all** checks are chunked (256 tokens) and embedded.
 
 | Hyper‑param | Value | Note |
 |-------------|-------|------|
-| Base model | Mistral 7B or Llama‑3 8B | open‑weights |
+| Base model | Llama 3.1 8B Instruct | open‑weights |
 | LoRA rank `r` | 16 | quality / VRAM trade‑off |
 | Alpha | 2 × r | scaling rule |
 | LR (AdamW) | 1 × 10⁻⁴ | tune first |

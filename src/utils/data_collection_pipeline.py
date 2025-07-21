@@ -250,7 +250,7 @@ class DataCollectionPipeline:
         
         # Use default KOL list if none provided
         if kol_usernames is None:
-            kol_usernames = self.config.crypto_kols[:10]  # Limit to first 10 for testing
+            kol_usernames = self.config.crypto_kols[:3]  # Very conservative for API limits
         
         collection_results = {
             "kol_data": {},
@@ -265,14 +265,14 @@ class DataCollectionPipeline:
             logger.info("Phase 1: Collecting KOL data")
             collection_results["kol_data"] = self.collect_kol_data(
                 kol_usernames=kol_usernames,
-                tweets_per_kol=20  # Reduced for comprehensive collection
+                tweets_per_kol=5  # Very conservative for API limits
             )
         
         # 2. Collect trending tweets
         if collect_trending:
             logger.info("Phase 2: Collecting trending crypto tweets")
             collection_results["trending_tweets"] = self.collect_trending_crypto_tweets(
-                max_tweets=50
+                max_tweets=10  # Very conservative for API limits
             )
         
         # 3. Collect high-engagement tweets
@@ -280,7 +280,7 @@ class DataCollectionPipeline:
             logger.info("Phase 3: Collecting high-engagement tweets")
             collection_results["high_engagement_tweets"] = self.collect_high_engagement_tweets(
                 min_engagement=30,
-                max_tweets=30
+                max_tweets=10  # Very conservative for API limits
             )
         
         # Update final statistics

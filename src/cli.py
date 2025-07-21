@@ -32,6 +32,7 @@ from utils.twitter_service import TwitterService
 from utils.x_api_client import XAPIClient
 from utils.data_collection_pipeline import DataCollectionPipeline
 from utils.engagement_tracker import EngagementTracker
+from webapp.human_evaluator import HumanEvaluationApp, HumanEvaluationDB
 from config import Config
 
 def _handle_twitter_command(args):
@@ -723,6 +724,122 @@ def _handle_x_api_command(args):
         traceback.print_exc()
 
 
+def _handle_human_eval_command(args):
+    """Handle human evaluation interface commands."""
+    if not args.human_eval_command:
+        print("Human eval command required. Use 'human-eval start', 'human-eval create-task', or 'human-eval stats'")
+        return
+    
+    try:
+        if args.human_eval_command == 'start':
+            print("Starting Human Evaluation Web Interface...")
+            print("=" * 50)
+            
+            app = HumanEvaluationApp()
+            host = getattr(args, 'host', '127.0.0.1')
+            port = getattr(args, 'port', 5000)
+            debug = getattr(args, 'debug', False)
+            
+            print(f"🌐 Web interface will be available at: http://{host}:{port}")
+            print("📝 Evaluators can register and start evaluating AI responses")
+            print("🔗 Open the URL in your browser to access the interface")
+            print("\nPress Ctrl+C to stop the server\n")
+            
+            try:
+                app.run(host=host, port=port, debug=debug)
+            except KeyboardInterrupt:
+                print("\n👋 Shutting down human evaluation interface...")
+            except Exception as e:
+                print(f"❌ Error starting web interface: {e}")
+        
+        elif args.human_eval_command == 'create-task':
+            print("Creating evaluation task...")
+            print("=" * 40)
+            
+            db = HumanEvaluationDB()
+            
+            # Get required arguments
+            prompt = getattr(args, 'prompt', None)
+            response_a = getattr(args, 'response_a', None)
+            response_b = getattr(args, 'response_b', None)
+            
+            if not all([prompt, response_a, response_b]):
+                print("❌ All arguments required: --prompt, --response-a, --response-b")
+                return
+            
+            # Create metadata
+            metadata_a = {"source": "model_a", "created_at": datetime.utcnow().isoformat()}
+            metadata_b = {"source": "model_b", "created_at": datetime.utcnow().isoformat()}
+            
+            task_id = db.create_evaluation_task(
+                prompt=prompt,
+                response_a=response_a,
+                response_b=response_b,
+                response_a_metadata=metadata_a,
+                response_b_metadata=metadata_b
+            )
+            
+            print(f"✅ Created evaluation task: {task_id}")
+            print(f"📝 Prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
+            print(f"📊 Response A: {len(response_a)} characters")
+            print(f"📊 Response B: {len(response_b)} characters")
+        
+        elif args.human_eval_command == 'stats':
+            print("Human Evaluation Statistics:")
+            print("=" * 40)
+            
+            db = HumanEvaluationDB()
+            stats = db.get_evaluation_stats()
+            
+            print(f"📋 Total tasks: {stats['total_tasks']}")
+            print(f"✅ Completed tasks: {stats['completed_tasks']}")
+            print(f"⏳ Pending tasks: {stats['pending_tasks']}")
+            print(f"👥 Active evaluators: {stats['active_evaluators']}")
+            print(f"🔥 Recent evaluations (24h): {stats['recent_evaluations_24h']}")
+            print(f"📈 Completion rate: {stats['completion_rate']:.1f}%")
+        
+        elif args.human_eval_command == 'demo-tasks':
+            print("Creating demo evaluation tasks...")
+            print("=" * 40)
+            
+            db = HumanEvaluationDB()
+            
+            # Create some demo tasks for testing
+            demo_tasks = [
+                {
+                    "prompt": "What is Bitcoin and how does it work?",
+                    "response_a": "Bitcoin is a digital cryptocurrency that uses blockchain technology to enable peer-to-peer transactions without intermediaries. It operates on a decentralized network where transactions are verified by miners through a proof-of-work consensus mechanism.",
+                    "response_b": "Bitcoin is like digital money that you can send to anyone without using banks. It's based on a special technology called blockchain that keeps track of all transactions. People called miners use computers to verify transactions and get rewarded with new bitcoins."
+                },
+                {
+                    "prompt": "Explain DeFi and its benefits over traditional finance.",
+                    "response_a": "DeFi (Decentralized Finance) refers to financial services built on blockchain networks, particularly Ethereum. It eliminates intermediaries like banks by using smart contracts to automate lending, borrowing, trading, and other financial operations. Benefits include 24/7 availability, global accessibility, transparency, and often lower fees.",
+                    "response_b": "Decentralized Finance or DeFi is a new financial system that works without traditional banks or financial institutions. Instead, it uses computer programs called smart contracts on the blockchain. This means you can lend, borrow, and trade money directly with other people around the world, anytime you want, often with better rates than banks."
+                }
+            ]
+            
+            created_count = 0
+            for task in demo_tasks:
+                task_id = db.create_evaluation_task(
+                    prompt=task["prompt"],
+                    response_a=task["response_a"],
+                    response_b=task["response_b"]
+                )
+                created_count += 1
+                print(f"✅ Created task {created_count}: {task['prompt'][:50]}...")
+            
+            print(f"\n🎉 Created {created_count} demo evaluation tasks")
+            print("👨‍💻 Evaluators can now start evaluating these tasks through the web interface")
+        
+        else:
+            print(f"Unknown human eval command: {args.human_eval_command}")
+    
+    except Exception as e:
+        print(f"Error in human eval command: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -747,6 +864,11 @@ Examples:
   %(prog)s x-api test
   %(prog)s x-api collect --kols VitalikButerin,elonmusk
   %(prog)s x-api track --tweet-ids 1234567890,0987654321
+
+  # Human evaluation interface
+  %(prog)s human-eval demo-tasks
+  %(prog)s human-eval start
+  %(prog)s human-eval stats
 
   # Interactive mode
   %(prog)s interactive
@@ -842,6 +964,28 @@ Examples:
     x_api_top_parser = x_api_subparsers.add_parser('top-tweets', help='Show top performing tweets')
     x_api_top_parser.add_argument('--limit', type=int, default=10, help='Number of top tweets to show')
 
+    # Human evaluation commands
+    human_eval_parser = subparsers.add_parser('human-eval', help='Human evaluation interface')
+    human_eval_subparsers = human_eval_parser.add_subparsers(dest='human_eval_command', help='Human eval command')
+    
+    # Human eval start
+    human_eval_start_parser = human_eval_subparsers.add_parser('start', help='Start web interface')
+    human_eval_start_parser.add_argument('--host', default='127.0.0.1', help='Host to bind to')
+    human_eval_start_parser.add_argument('--port', type=int, default=5000, help='Port to bind to')
+    human_eval_start_parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    
+    # Human eval create task
+    human_eval_task_parser = human_eval_subparsers.add_parser('create-task', help='Create evaluation task')
+    human_eval_task_parser.add_argument('--prompt', required=True, help='Evaluation prompt')
+    human_eval_task_parser.add_argument('--response-a', required=True, help='First response to evaluate')
+    human_eval_task_parser.add_argument('--response-b', required=True, help='Second response to evaluate')
+    
+    # Human eval stats
+    human_eval_stats_parser = human_eval_subparsers.add_parser('stats', help='Show evaluation statistics')
+    
+    # Human eval demo tasks
+    human_eval_demo_parser = human_eval_subparsers.add_parser('demo-tasks', help='Create demo evaluation tasks')
+
     args = parser.parse_args()
     
     if not args.command:
@@ -874,6 +1018,11 @@ Examples:
     # Execute X API commands
     if args.command == 'x-api':
         _handle_x_api_command(args)
+        return
+
+    # Execute Human Evaluation commands
+    if args.command == 'human-eval':
+        _handle_human_eval_command(args)
         return
 
     # Initialize components if needed

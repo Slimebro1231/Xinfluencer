@@ -2,4 +2,8 @@
 paramiko
 requests
 rich
-python-dotenv 
+python-dotenv
+
+# Web interface for human evaluation
+flask>=2.3.0
+werkzeug>=2.3.0 

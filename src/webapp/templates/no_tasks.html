@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}No Tasks Available - Xinfluencer AI Evaluation{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 text-center">
+        <div class="card">
+            <div class="card-body py-5">
+                <i class="fas fa-tasks fa-4x text-muted mb-4"></i>
+                <h3>No Evaluation Tasks Available</h3>
+                <p class="lead text-muted mb-4">
+                    Great job! You've completed all available evaluation tasks for now.
+                </p>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>What's happening:</strong> New evaluation tasks are generated automatically 
+                    as the AI creates new content. Check back soon for more tasks to evaluate.
+                </div>
+                
+                <div class="row justify-content-center mt-4">
+                    <div class="col-md-8">
+                        <h5>What you can do now:</h5>
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item border-0">
+                                <i class="fas fa-chart-bar text-primary me-2"></i>
+                                <a href="{{ url_for('stats') }}" class="text-decoration-none">
+                                    View your evaluation statistics and progress
+                                </a>
+                            </div>
+                            <div class="list-group-item border-0">
+                                <i class="fas fa-home text-success me-2"></i>
+                                <a href="{{ url_for('index') }}" class="text-decoration-none">
+                                    Return to the dashboard
+                                </a>
+                            </div>
+                            <div class="list-group-item border-0">
+                                <i class="fas fa-clock text-warning me-2"></i>
+                                <span class="text-muted">Check back in a few minutes for new tasks</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button class="btn btn-primary me-2" onclick="location.reload()">
+                        <i class="fas fa-sync"></i> Check for New Tasks
+                    </button>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-home"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <small class="text-muted">
+                Thank you for contributing to AI training! Your evaluations help create better crypto content.
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-refresh every 30 seconds to check for new tasks
+    let refreshInterval = setInterval(function() {
+        // Check if there are new tasks available
+        $.get('/api/stats')
+            .done(function(data) {
+                if (data.pending_tasks > 0) {
+                    // New tasks available - show notification and redirect
+                    const notification = `
+                        <div class="alert alert-success alert-dismissible fade show position-fixed" 
+                             style="top: 20px; right: 20px; z-index: 9999; max-width: 300px;">
+                            <i class="fas fa-bell"></i>
+                            <strong>New tasks available!</strong> Redirecting...
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    $('body').append(notification);
+                    
+                    // Redirect after showing notification
+                    setTimeout(function() {
+                        window.location.href = '/evaluate';
+                    }, 2000);
+                    
+                    // Clear the interval
+                    clearInterval(refreshInterval);
+                }
+            })
+            .fail(function() {
+                console.log('Failed to check for new tasks');
+            });
+    }, 30000); // Check every 30 seconds
+    
+    // Clear interval when user leaves page
+    $(window).on('beforeunload', function() {
+        clearInterval(refreshInterval);
+    });
+});
+</script>
+{% endblock %} 

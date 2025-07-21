@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Xinfluencer AI Evaluation{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header text-center bg-primary text-white">
+                <h4><i class="fas fa-user-plus"></i> Join as Evaluator</h4>
+                <p class="mb-0">Help improve AI-generated crypto content</p>
+            </div>
+            <div class="card-body">
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email Address</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="expertise_level" class="form-label">Expertise Level</label>
+                        <select class="form-select" id="expertise_level" name="expertise_level" required>
+                            <option value="">Select your level</option>
+                            <option value="beginner">Beginner - Basic understanding of crypto</option>
+                            <option value="intermediate">Intermediate - Good crypto knowledge</option>
+                            <option value="expert">Expert - Deep crypto expertise</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Areas of Specialization (select all that apply)</label>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="crypto" id="spec_crypto">
+                                    <label class="form-check-label" for="spec_crypto">
+                                        Cryptocurrency
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="defi" id="spec_defi">
+                                    <label class="form-check-label" for="spec_defi">
+                                        DeFi (Decentralized Finance)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="blockchain" id="spec_blockchain">
+                                    <label class="form-check-label" for="spec_blockchain">
+                                        Blockchain Technology
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="trading" id="spec_trading">
+                                    <label class="form-check-label" for="spec_trading">
+                                        Trading & Investment
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="rwa" id="spec_rwa">
+                                    <label class="form-check-label" for="spec_rwa">
+                                        Real World Assets (RWA)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="nft" id="spec_nft">
+                                    <label class="form-check-label" for="spec_nft">
+                                        NFTs & Digital Assets
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="technical_writing" id="spec_writing">
+                                    <label class="form-check-label" for="spec_writing">
+                                        Technical Writing
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="specializations" value="finance" id="spec_finance">
+                                    <label class="form-check-label" for="spec_finance">
+                                        Traditional Finance
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>About Evaluation:</strong> You'll be presented with crypto-related prompts and two AI-generated responses. Your task is to evaluate which response is better based on accuracy, relevance, clarity, and overall quality.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-check"></i> Register & Start Evaluating
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <small class="text-muted">
+                Your evaluations help train better AI models for crypto content generation.
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#registerForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Get form data
+        const formData = new FormData(this);
+        const data = {
+            name: formData.get('name'),
+            email: formData.get('email'),
+            expertise_level: formData.get('expertise_level'),
+            specializations: formData.getAll('specializations')
+        };
+        
+        // Validate specializations
+        if (data.specializations.length === 0) {
+            alert('Please select at least one area of specialization.');
+            return;
+        }
+        
+        // Disable submit button
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Registering...');
+        
+        // Submit registration
+        $.ajax({
+            url: '/register',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                if (response.success) {
+                    // Show success message
+                    const successAlert = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Registration successful!</strong> Redirecting to dashboard...
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    $('.card').before(successAlert);
+                    
+                    // Redirect after short delay
+                    setTimeout(function() {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    throw new Error('Registration failed');
+                }
+            },
+            error: function(xhr, status, error) {
+                // Show error message
+                let errorMsg = 'Registration failed. Please try again.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                
+                const errorAlert = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Error:</strong> ${errorMsg}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                $('.card').before(errorAlert);
+                
+                // Re-enable submit button
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

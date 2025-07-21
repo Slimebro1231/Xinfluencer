@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Xinfluencer AI Evaluation{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>Welcome, {{ evaluator.name }}!</h2>
+                <p class="text-muted mb-0">Help improve AI-generated crypto content through evaluation</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-primary fs-6">{{ evaluator.expertise_level.title() }} Level</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card bg-primary text-white">
+            <div class="stats-number">{{ evaluator.total_evaluations }}</div>
+            <div class="stats-label text-light">Your Evaluations</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card bg-success text-white">
+            <div class="stats-number">{{ stats.pending_tasks }}</div>
+            <div class="stats-label text-light">Pending Tasks</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card bg-info text-white">
+            <div class="stats-number">{{ "%.1f"|format(stats.completion_rate) }}%</div>
+            <div class="stats-label text-light">Completion Rate</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card bg-warning text-dark">
+            <div class="stats-number">{{ stats.active_evaluators }}</div>
+            <div class="stats-label">Active Evaluators</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-tasks"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-grid">
+                            <a href="{{ url_for('evaluate') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-play"></i> Start Evaluation
+                            </a>
+                        </div>
+                        <small class="text-muted mt-1 d-block text-center">
+                            Begin evaluating AI responses
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-grid">
+                            <a href="{{ url_for('stats') }}" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-chart-bar"></i> View Statistics
+                            </a>
+                        </div>
+                        <small class="text-muted mt-1 d-block text-center">
+                            See your progress and insights
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-user"></i> Your Profile</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ evaluator.email }}</p>
+                <p><strong>Level:</strong> {{ evaluator.expertise_level.title() }}</p>
+                <p><strong>Specializations:</strong></p>
+                <div class="mb-2">
+                    {% for spec in evaluator.specializations %}
+                        <span class="badge bg-secondary me-1">{{ spec.upper() }}</span>
+                    {% endfor %}
+                </div>
+                {% if evaluator.agreement_rate %}
+                <p><strong>Agreement Rate:</strong> {{ "%.1f"|format(evaluator.agreement_rate * 100) }}%</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> About the Evaluation System</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <p>
+                            You're helping train the next generation of AI models for cryptocurrency content generation. 
+                            Your evaluations directly influence how the AI learns to generate better, more accurate responses.
+                        </p>
+                        
+                        <h6>What you're evaluating:</h6>
+                        <ul>
+                            <li><strong>Factual Accuracy</strong> - Are the crypto facts and technical details correct?</li>
+                            <li><strong>Relevance</strong> - How well does the response address the question?</li>
+                            <li><strong>Clarity</strong> - Is the explanation clear and understandable?</li>
+                            <li><strong>Usefulness</strong> - Would this information be valuable to crypto enthusiasts?</li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-lightbulb"></i>
+                            <strong>Tip:</strong> Your expertise in {{ evaluator.specializations|join(', ') }} 
+                            makes your evaluations particularly valuable for training domain-specific AI capabilities.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <i class="fas fa-brain fa-4x text-primary mb-3"></i>
+                            <h6>AI Learning Process</h6>
+                            <p class="small text-muted">
+                                Your evaluations are used to train the model through reinforcement learning, 
+                                helping it understand what makes high-quality crypto content.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity (if any) -->
+{% if stats.recent_evaluations_24h > 0 %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-clock"></i> Recent Activity</h6>
+            </div>
+            <div class="card-body">
+                <p>
+                    <span class="badge bg-success">{{ stats.recent_evaluations_24h }}</span> 
+                    evaluations completed in the last 24 hours by all evaluators.
+                </p>
+                
+                <div class="progress mb-2">
+                    <div class="progress-bar" role="progressbar" 
+                         style="width: {{ stats.completion_rate }}%" 
+                         aria-valuenow="{{ stats.completion_rate }}" 
+                         aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+                <small class="text-muted">
+                    {{ stats.completed_tasks }} of {{ stats.total_tasks }} total tasks completed
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-refresh stats every 30 seconds
+    setInterval(function() {
+        $.get('/api/stats')
+            .done(function(data) {
+                // Update stats display without full page reload
+                $('.stats-card .stats-number').each(function(index) {
+                    const newValues = [
+                        {{ evaluator.total_evaluations }}, // Your evaluations (doesn't change on refresh)
+                        data.pending_tasks,
+                        data.completion_rate.toFixed(1) + '%',
+                        data.active_evaluators
+                    ];
+                    if (index < newValues.length && index !== 0) { // Skip first one (user evaluations)
+                        $(this).text(newValues[index]);
+                    }
+                });
+            })
+            .fail(function() {
+                console.log('Failed to refresh stats');
+            });
+    }, 30000); // 30 seconds
+});
+</script>
+{% endblock %} 

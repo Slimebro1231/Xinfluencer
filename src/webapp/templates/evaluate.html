@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+
+{% block title %}Evaluate Responses - Xinfluencer AI{% endblock %}
+
+{% block content %}
+<!-- Evaluation Timer -->
+<div class="evaluation-timer" id="evaluationTimer">
+    <i class="fas fa-clock"></i> <span id="timerDisplay">00:00</span>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <!-- Prompt Card -->
+        <div class="prompt-card">
+            <h5><i class="fas fa-question-circle"></i> Evaluation Prompt</h5>
+            <p class="mb-0">{{ task.prompt }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Response A -->
+    <div class="col-md-6">
+        <div class="card response-card" data-response="first">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-robot"></i> Response #1
+                    <span class="badge bg-light text-dark float-end" id="responseALength"></span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="response-content">
+                    {% if response_order.first == 'A' %}
+                        {{ task.response_a }}
+                    {% else %}
+                        {{ task.response_b }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Response B -->
+    <div class="col-md-6">
+        <div class="card response-card" data-response="second">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-robot"></i> Response #2
+                    <span class="badge bg-light text-dark float-end" id="responseBLength"></span>
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="response-content">
+                    {% if response_order.second == 'A' %}
+                        {{ task.response_a }}
+                    {% else %}
+                        {{ task.response_b }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Evaluation Form -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clipboard-check"></i> Your Evaluation</h5>
+            </div>
+            <div class="card-body">
+                <form id="evaluationForm">
+                    <!-- Preference Selection -->
+                    <div class="mb-4">
+                        <label class="form-label"><strong>Which response is better overall?</strong></label>
+                        <div class="btn-group w-100" role="group" id="preferenceGroup">
+                            <input type="radio" class="btn-check" name="preference" id="prefer_first" value="first">
+                            <label class="btn btn-outline-primary" for="prefer_first">
+                                <i class="fas fa-thumbs-up"></i> Response #1 is Better
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="preference" id="prefer_tie" value="tie">
+                            <label class="btn btn-outline-secondary" for="prefer_tie">
+                                <i class="fas fa-equals"></i> They're About Equal
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="preference" id="prefer_second" value="second">
+                            <label class="btn btn-outline-primary" for="prefer_second">
+                                <i class="fas fa-thumbs-up"></i> Response #2 is Better
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Confidence Level -->
+                    <div class="mb-4">
+                        <label for="confidence" class="form-label">
+                            <strong>How confident are you in this judgment?</strong>
+                            <span class="text-muted">(1 = Not confident, 5 = Very confident)</span>
+                        </label>
+                        <div class="d-flex align-items-center">
+                            <span class="me-2">1</span>
+                            <input type="range" class="form-range flex-grow-1" id="confidence" name="confidence" 
+                                   min="1" max="5" value="3" step="1">
+                            <span class="ms-2">5</span>
+                        </div>
+                        <div class="text-center mt-1">
+                            <span class="badge bg-info" id="confidenceDisplay">Moderately Confident (3)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Quality Dimensions -->
+                    <div class="mb-4">
+                        <h6><strong>Rate each dimension (1-10 scale):</strong></h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <!-- Factual Accuracy -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-check-circle text-success"></i> Factual Accuracy
+                                        <span class="text-muted">(Are the facts correct?)</span>
+                                    </label>
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">1</span>
+                                        <input type="range" class="form-range flex-grow-1 quality-slider" 
+                                               name="factual_accuracy" min="1" max="10" value="5" step="1">
+                                        <span class="ms-2">10</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="badge bg-secondary quality-display" data-metric="factual_accuracy">5</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Relevance -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-bullseye text-warning"></i> Relevance
+                                        <span class="text-muted">(How well does it answer the question?)</span>
+                                    </label>
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">1</span>
+                                        <input type="range" class="form-range flex-grow-1 quality-slider" 
+                                               name="relevance" min="1" max="10" value="5" step="1">
+                                        <span class="ms-2">10</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="badge bg-secondary quality-display" data-metric="relevance">5</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <!-- Clarity -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-eye text-info"></i> Clarity
+                                        <span class="text-muted">(Is it easy to understand?)</span>
+                                    </label>
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">1</span>
+                                        <input type="range" class="form-range flex-grow-1 quality-slider" 
+                                               name="clarity" min="1" max="10" value="5" step="1">
+                                        <span class="ms-2">10</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="badge bg-secondary quality-display" data-metric="clarity">5</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Usefulness -->
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-star text-danger"></i> Usefulness
+                                        <span class="text-muted">(Would this be helpful to readers?)</span>
+                                    </label>
+                                    <div class="d-flex align-items-center">
+                                        <span class="me-2">1</span>
+                                        <input type="range" class="form-range flex-grow-1 quality-slider" 
+                                               name="usefulness" min="1" max="10" value="5" step="1">
+                                        <span class="ms-2">10</span>
+                                    </div>
+                                    <div class="text-center">
+                                        <span class="badge bg-secondary quality-display" data-metric="usefulness">5</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Optional Feedback -->
+                    <div class="mb-4">
+                        <label for="feedback" class="form-label">
+                            <strong>Additional Comments (optional)</strong>
+                        </label>
+                        <textarea class="form-control" id="feedback" name="feedback" rows="3" 
+                                  placeholder="Any specific observations, issues, or suggestions..."></textarea>
+                    </div>
+                    
+                    <!-- Submit Buttons -->
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='/'">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-paper-plane"></i> Submit Evaluation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instructions Modal -->
+<div class="modal fade" id="instructionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-info-circle"></i> Evaluation Guidelines</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>How to Evaluate:</h6>
+                <ul>
+                    <li><strong>Read both responses carefully</strong> - Take your time to understand the content</li>
+                    <li><strong>Compare quality, not length</strong> - Shorter responses can be better if they're more precise</li>
+                    <li><strong>Focus on crypto accuracy</strong> - Technical details and market information should be correct</li>
+                    <li><strong>Consider the audience</strong> - Responses should be appropriate for crypto enthusiasts</li>
+                    <li><strong>Be honest about ties</strong> - If responses are truly equal, select "About Equal"</li>
+                </ul>
+                
+                <h6>Rating Dimensions:</h6>
+                <ul>
+                    <li><strong>Factual Accuracy:</strong> Are the facts, figures, and technical details correct?</li>
+                    <li><strong>Relevance:</strong> How well does the response address the specific question?</li>
+                    <li><strong>Clarity:</strong> Is the explanation clear and easy to understand?</li>
+                    <li><strong>Usefulness:</strong> Would this information be valuable to someone interested in crypto?</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it!</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let startTime = new Date();
+let timerInterval;
+
+$(document).ready(function() {
+    // Start evaluation timer
+    startTimer();
+    
+    // Show instructions modal on first load
+    if (!localStorage.getItem('instructionsShown')) {
+        $('#instructionsModal').modal('show');
+        localStorage.setItem('instructionsShown', 'true');
+    }
+    
+    // Calculate response lengths
+    updateResponseLengths();
+    
+    // Handle response card clicks
+    $('.response-card').on('click', function() {
+        const responseType = $(this).data('response');
+        $(`#prefer_${responseType}`).prop('checked', true);
+        updateResponseSelection();
+    });
+    
+    // Handle preference change
+    $('input[name="preference"]').on('change', updateResponseSelection);
+    
+    // Handle confidence slider
+    $('#confidence').on('input', function() {
+        const value = $(this).val();
+        const labels = ['Very Low (1)', 'Low (2)', 'Moderate (3)', 'High (4)', 'Very High (5)'];
+        $('#confidenceDisplay').text(`${labels[value - 1]}`);
+    });
+    
+    // Handle quality sliders
+    $('.quality-slider').on('input', function() {
+        const value = $(this).val();
+        const metric = $(this).attr('name');
+        $(`.quality-display[data-metric="${metric}"]`).text(value);
+    });
+    
+    // Handle form submission
+    $('#evaluationForm').on('submit', function(e) {
+        e.preventDefault();
+        submitEvaluation();
+    });
+    
+    // Add help button
+    $('<button type="button" class="btn btn-outline-info btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#instructionsModal"><i class="fas fa-question-circle"></i> Help</button>')
+        .insertAfter('.card-header h5');
+});
+
+function startTimer() {
+    timerInterval = setInterval(function() {
+        const now = new Date();
+        const elapsed = Math.floor((now - startTime) / 1000);
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = elapsed % 60;
+        $('#timerDisplay').text(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    }, 1000);
+}
+
+function updateResponseLengths() {
+    const responseA = $('.col-md-6:first .response-content').text().trim();
+    const responseB = $('.col-md-6:last .response-content').text().trim();
+    
+    $('#responseALength').text(`${responseA.length} chars`);
+    $('#responseBLength').text(`${responseB.length} chars`);
+}
+
+function updateResponseSelection() {
+    $('.response-card').removeClass('selected');
+    const selected = $('input[name="preference"]:checked').val();
+    if (selected && selected !== 'tie') {
+        $(`.response-card[data-response="${selected}"]`).addClass('selected');
+    }
+}
+
+function submitEvaluation() {
+    // Validate form
+    if (!$('input[name="preference"]:checked').length) {
+        alert('Please select which response is better.');
+        return;
+    }
+    
+    // Collect form data
+    const data = {
+        preference: $('input[name="preference"]:checked').val(),
+        confidence: parseInt($('#confidence').val()),
+        quality_scores: {
+            factual_accuracy: parseInt($('input[name="factual_accuracy"]').val()),
+            relevance: parseInt($('input[name="relevance"]').val()),
+            clarity: parseInt($('input[name="clarity"]').val()),
+            usefulness: parseInt($('input[name="usefulness"]').val())
+        },
+        feedback: $('#feedback').val().trim()
+    };
+    
+    // Disable submit button
+    const submitBtn = $('#evaluationForm button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Submitting...');
+    
+    // Stop timer
+    clearInterval(timerInterval);
+    
+    // Submit evaluation
+    $.ajax({
+        url: '/submit_evaluation',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            if (response.success) {
+                // Show success message and redirect
+                const successMsg = `
+                    <div class="alert alert-success text-center">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h5>Evaluation Submitted Successfully!</h5>
+                        <p>Thank you for your evaluation. Redirecting to next task...</p>
+                    </div>
+                `;
+                $('main').html(successMsg);
+                
+                // Redirect after delay
+                setTimeout(function() {
+                    window.location.href = '/evaluate';
+                }, 2000);
+            } else {
+                throw new Error('Submission failed');
+            }
+        },
+        error: function(xhr, status, error) {
+            // Show error and re-enable form
+            alert('Error submitting evaluation. Please try again.');
+            submitBtn.prop('disabled', false).html(originalText);
+            
+            // Restart timer
+            startTimer();
+        }
+    });
+}
+</script>
+{% endblock %} 

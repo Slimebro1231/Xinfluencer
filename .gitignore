@@ -230,4 +230,14 @@ scripts/test_*.py
 scripts/test_twikit.py 
 
 # Soju AI persona file
-soju_identity.txt 
+soju_identity.txt
+
+# Internal technical documentation (not for public consumption)
+EVALUATION_STATUS.md
+EVALUATION_FRAMEWORK.md
+TECHNICAL_ARCHITECTURE.md
+H200_QUICKSTART.md
+H200_UPGRADE_STATUS.md
+H200_UPGRADE_ROADMAP.md
+IMPLEMENTATION_SUMMARY.md
+XKOLList.md 

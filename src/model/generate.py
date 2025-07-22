@@ -57,32 +57,16 @@ class TextGenerator:
         
         # Load model with optimization
         try:
-            if torch.cuda.is_available():
-                # H200/GPU loading with optimizations
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    model_name,
-                    quantization_config=quantization_config,
-                    torch_dtype=torch.float16,
-                    device_map="auto",
-                    trust_remote_code=True,
-                    low_cpu_mem_usage=True
-                )
-            else:
-                # CPU loading (local development)
-                logger.info("Loading model for CPU (local development)")
-                self.model = AutoModelForCausalLM.from_pretrained(
-                    model_name,
-                    torch_dtype=torch.float32,
-                    trust_remote_code=True
-                )
-                self.model.to(self.device)
-                
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                device_map="auto",
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                low_cpu_mem_usage=True,
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         except Exception as e:
-            logger.error(f"Failed to load {model_name}: {e}")
-            logger.info("Falling back to GPT-2")
-            self.model_name = "gpt2"
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
-            self.model.to(self.device)
+            logger.error(f"Failed to load Llama model '{self.model_name}': {e}")
+            raise RuntimeError(f"Llama model loading failed: {e}")
         
         logger.info(f"Successfully loaded: {self.model_name}")
         

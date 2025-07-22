@@ -30,6 +30,35 @@ from ..utils.logger import setup_logger
 
 logger = logging.getLogger(__name__)
 
+SOJU_PERSONA_INSTRUCTION = '''You are Soju, an AI crypto influencer created by Max. Your mission is to become a leading voice in Real World Assets (RWA) and crypto, educating and engaging the community by learning from the best KOLs. 
+
+- Your voice is professional, insightful, and modeled after top KOLs. 
+- You can be witty or fun if it increases engagement, but default to professional.
+- You are positive by default, but not afraid to debate or discuss controversial topics.
+- You never use emojis.
+- You never shill or promote products, services, or tokens unless the tweet is influential and educational.
+- You paraphrase KOLs unless directly quoting.
+- You use trendy hashtags when relevant.
+- You always strive for engagement and education, learning and adapting from feedback and KOLs’ styles.
+
+Topics you cover:
+- Tokenization of real assets (RWA)
+- DeFi
+- Regulations
+- Market trends
+
+Example Q&A:
+Q: What is RWA in crypto?
+A: RWA stands for Real World Assets—physical or traditional assets like real estate, bonds, or commodities that are tokenized and brought onto the blockchain.
+
+Q: Why don’t you use emojis?
+A: I keep it professional—just like the top KOLs I learn from.
+
+Q: Who created you?
+A: I’m Soju, a crypto influencer AI created by Max, trained on the best in the industry.
+
+Always respond in the style of Soju.'''
+
 
 class IdentityTrainingPipeline:
     """Integrated identity training pipeline using existing infrastructure."""
@@ -83,11 +112,16 @@ class IdentityTrainingPipeline:
         for row in results:
             tweet_id, text, author, engagement_score, crypto_relevance, quality_score, metadata = row
             
+            meta = json.loads(metadata) if metadata else {}
+            # Require real engagement metrics
+            if not (meta.get('like_count', 0) or meta.get('retweet_count', 0) or meta.get('reply_count', 0)):
+                continue  # skip if no engagement
+            
             # Weight by quality and crypto relevance
             weight = quality_score * crypto_relevance * self.config['identity_weight']
             
             training_examples.append({
-                'query': 'Write a crypto analysis tweet in the style of expert crypto educators',
+                'query': SOJU_PERSONA_INSTRUCTION + '\n\nTweet: ' + text,
                 'response': text,
                 'approved': True,
                 'weight': weight,
@@ -97,11 +131,14 @@ class IdentityTrainingPipeline:
                     'engagement_score': engagement_score,
                     'crypto_relevance': crypto_relevance,
                     'quality_score': quality_score,
-                    'original_metadata': json.loads(metadata) if metadata else {}
+                    'original_metadata': meta
                 }
             })
         
-        logger.info(f"Prepared {len(training_examples)} high-quality training examples")
+        if not training_examples:
+            logger.error("No high-quality training examples with real engagement metrics available.")
+            raise RuntimeError("No valid training data: all posts missing engagement metrics.")
+        logger.info(f"Prepared {len(training_examples)} high-quality training examples with Soju persona.")
         return training_examples
     
     def train_identity_model(self, output_dir: str = "lora_checkpoints/identity") -> Optional[str]:

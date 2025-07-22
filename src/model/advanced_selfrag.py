@@ -49,77 +49,81 @@ class AdvancedSelfRAG:
         iterations = []
         contradiction_detected = False
         
-        for iteration in range(max_iterations):
-            logger.info(f"Advanced Self-RAG iteration {iteration + 1}/{max_iterations}")
+        try:
+            for iteration in range(max_iterations):
+                logger.info(f"Advanced Self-RAG iteration {iteration + 1}/{max_iterations}")
+                
+                # Step 1: Retrieve relevant context with evidence weighting
+                context_data = self._retrieve_weighted_context(query, iteration)
+                
+                # Step 2: Check for contradictions in evidence
+                contradictions = self._detect_contradictions(context_data['evidence'])
+                if contradictions and not contradiction_detected:
+                    logger.warning(f"Contradictions detected: {contradictions}")
+                    contradiction_detected = True
+                
+                # Step 3: Generate response with Chain-of-Thought reasoning
+                if self.cot_rag:
+                    response_data = self.cot_rag.generate_with_reasoning(query)
+                    response = response_data['final_answer']
+                    reasoning_steps = response_data['reasoning_steps']
+                else:
+                    # Fallback to simple generation
+                    response = self.generator.generate_text(query, max_tokens=200)
+                    reasoning_steps = []
+                
+                # Step 4: Advanced self-reflection and critique
+                reflection_scores = self._advanced_self_reflect(query, response, context_data['evidence'])
+                
+                # Step 5: Calculate weighted overall score
+                overall_score = self._calculate_weighted_score(reflection_scores, context_data['evidence_quality'])
+                
+                # Step 6: Check for contradictions in response
+                response_contradictions = self._detect_response_contradictions(response, context_data['evidence'])
+                if response_contradictions:
+                    reflection_scores['contradictions'] = 2.0  # Penalize contradictions
+                    overall_score *= 0.7  # Reduce overall score
+                
+                iteration_data = {
+                    "iteration": iteration + 1,
+                    "response": response,
+                    "reasoning_steps": reasoning_steps,
+                    "evidence": context_data['evidence'],
+                    "evidence_quality": context_data['evidence_quality'],
+                    "reflection_scores": reflection_scores,
+                    "overall_score": overall_score,
+                    "contradictions": contradictions,
+                    "response_contradictions": response_contradictions
+                }
+                iterations.append(iteration_data)
+                
+                # Step 7: Check if this is the best response so far
+                if overall_score > best_score:
+                    best_response = response
+                    best_score = overall_score
+                    best_evidence = context_data['evidence']
+                
+                # Step 8: Early stopping conditions
+                if self._should_stop_early(overall_score, iteration, contradiction_detected):
+                    logger.info(f"Early stopping - conditions met (score: {overall_score}, iteration: {iteration + 1})")
+                    break
             
-            # Step 1: Retrieve relevant context with evidence weighting
-            context_data = self._retrieve_weighted_context(query, iteration)
-            
-            # Step 2: Check for contradictions in evidence
-            contradictions = self._detect_contradictions(context_data['evidence'])
-            if contradictions and not contradiction_detected:
-                logger.warning(f"Contradictions detected: {contradictions}")
-                contradiction_detected = True
-            
-            # Step 3: Generate response with Chain-of-Thought reasoning
-            if self.cot_rag:
-                response_data = self.cot_rag.generate_with_reasoning(query)
-                response = response_data['final_answer']
-                reasoning_steps = response_data['reasoning_steps']
-            else:
-                # Fallback to simple generation
-                response = self.generator.generate_text(query, max_tokens=200)
-                reasoning_steps = []
-            
-            # Step 4: Advanced self-reflection and critique
-            reflection_scores = self._advanced_self_reflect(query, response, context_data['evidence'])
-            
-            # Step 5: Calculate weighted overall score
-            overall_score = self._calculate_weighted_score(reflection_scores, context_data['evidence_quality'])
-            
-            # Step 6: Check for contradictions in response
-            response_contradictions = self._detect_response_contradictions(response, context_data['evidence'])
-            if response_contradictions:
-                reflection_scores['contradictions'] = 2.0  # Penalize contradictions
-                overall_score *= 0.7  # Reduce overall score
-            
-            iteration_data = {
-                "iteration": iteration + 1,
-                "response": response,
-                "reasoning_steps": reasoning_steps,
-                "evidence": context_data['evidence'],
-                "evidence_quality": context_data['evidence_quality'],
-                "reflection_scores": reflection_scores,
-                "overall_score": overall_score,
-                "contradictions": contradictions,
-                "response_contradictions": response_contradictions
+            result = {
+                "query": query,
+                "best_response": best_response,
+                "best_score": best_score,
+                "best_evidence": best_evidence,
+                "iterations": iterations,
+                "total_iterations": len(iterations),
+                "contradiction_detected": contradiction_detected,
+                "final_confidence": self._calculate_final_confidence(best_score, len(iterations))
             }
-            iterations.append(iteration_data)
             
-            # Step 7: Check if this is the best response so far
-            if overall_score > best_score:
-                best_response = response
-                best_score = overall_score
-                best_evidence = context_data['evidence']
-            
-            # Step 8: Early stopping conditions
-            if self._should_stop_early(overall_score, iteration, contradiction_detected):
-                logger.info(f"Early stopping - conditions met (score: {overall_score}, iteration: {iteration + 1})")
-                break
-        
-        result = {
-            "query": query,
-            "best_response": best_response,
-            "best_score": best_score,
-            "best_evidence": best_evidence,
-            "iterations": iterations,
-            "total_iterations": len(iterations),
-            "contradiction_detected": contradiction_detected,
-            "final_confidence": self._calculate_final_confidence(best_score, len(iterations))
-        }
-        
-        logger.info(f"Advanced Self-RAG completed. Best score: {best_score}, Confidence: {result['final_confidence']}")
-        return result
+            logger.info(f"Advanced Self-RAG completed. Best score: {best_score}, Confidence: {result['final_confidence']}")
+            return result
+        except Exception as e:
+            logger.error(f"Advanced Self-RAG failed: {e}")
+            raise RuntimeError(f"Advanced Self-RAG failed: {e}")
     
     def _retrieve_weighted_context(self, query: str, iteration: int) -> Dict:
         """Retrieve context with evidence weighting and quality assessment."""

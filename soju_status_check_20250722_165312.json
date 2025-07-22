@@ -1,0 +1,25 @@
+{
+  "timestamp": "20250722_165312",
+  "status": {
+    "h200_training": {
+      "status": "incomplete",
+      "reason": "dependency_errors"
+    },
+    "local_checkpoints": {
+      "checkpoints": []
+    },
+    "training_data": {
+      "available_data": [
+        {
+          "file": "data/training_ready/real_posts.db",
+          "size": 126976
+        },
+        {
+          "file": "data/safe_collection/safe_crypto_collection_20250721_183136.json",
+          "size": 653679
+        }
+      ]
+    }
+  },
+  "notes": "Training incomplete due to H200 dependency issues. Local models can be cleaned up."
+}

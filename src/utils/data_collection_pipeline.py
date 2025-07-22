@@ -11,7 +11,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .x_api_client import XAPIClient, TweetData
-from config import Config
+from ..config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,17 @@ class DataCollectionPipeline:
         
         logger.info(f"API capabilities: {connection_test['capabilities']}")
         
+        # Batch get user IDs to optimize API usage
+        logger.info("Optimizing user ID lookups...")
+        user_ids = self.x_api.batch_get_user_ids(kol_usernames)
+        logger.info(f"Resolved {len(user_ids)}/{len(kol_usernames)} user IDs from cache/API")
+        
         # Process each KOL
         for i, username in enumerate(kol_usernames, 1):
+            if username not in user_ids:
+                logger.warning(f"Skipping @{username} - user ID not found")
+                continue
+                
             logger.info(f"Processing KOL {i}/{len(kol_usernames)}: @{username}")
             
             try:
@@ -90,9 +99,9 @@ class DataCollectionPipeline:
                 self.collection_stats["api_calls_made"] += 1
                 self.collection_stats["kols_processed"] += 1
                 
-                # Rate limiting delay (be respectful)
+                # Rate limiting delay (be respectful but efficient)
                 if i < len(kol_usernames):  # Don't delay after last KOL
-                    time.sleep(1.5)  # Small delay between requests
+                    time.sleep(0.5)  # Reduced delay for efficiency
                     
             except Exception as e:
                 logger.error(f"Error collecting from @{username}: {e}")
@@ -123,20 +132,23 @@ class DataCollectionPipeline:
             List of collected crypto tweets
         """
         if keywords is None:
+            # Optimized keywords - fewer searches with better targeting
             keywords = [
-                "crypto", "bitcoin", "ethereum", "DeFi", "RWA", 
-                "blockchain", "altcoin", "NFT", "web3"
+                "crypto OR bitcoin OR ethereum", 
+                "DeFi OR yield farming", 
+                "RWA OR tokenization",
+                "blockchain AND trading"
             ]
         
-        logger.info(f"Collecting trending crypto tweets with keywords: {keywords}")
+        logger.info(f"Collecting trending crypto tweets with optimized queries: {keywords}")
         
         all_tweets = []
         
-        # Search for each keyword
+        # Search with optimized queries to reduce API calls
         for keyword in keywords:
             try:
-                # Build search query
-                query = f"{keyword} -is:retweet -is:reply lang:en"
+                # Build efficient search query (removed min_faves - not available on Basic plan)
+                query = f"({keyword}) -is:retweet -is:reply lang:en"
                 
                 logger.info(f"Searching for: {query}")
                 
@@ -151,8 +163,8 @@ class DataCollectionPipeline:
                 
                 self.collection_stats["api_calls_made"] += 1
                 
-                # Small delay between searches
-                time.sleep(1)
+                # Reduced delay for efficiency
+                time.sleep(0.5)
                 
             except Exception as e:
                 logger.error(f"Error searching for '{keyword}': {e}")
@@ -191,8 +203,8 @@ class DataCollectionPipeline:
         """
         logger.info(f"Collecting high-engagement crypto tweets (min_engagement={min_engagement})")
         
-        # Search for crypto tweets with engagement filters
-        query = "crypto OR bitcoin OR ethereum min_faves:20 min_retweets:5 -is:retweet lang:en"
+        # Search for crypto tweets (removed engagement filters - not available on Basic plan)
+        query = "crypto OR bitcoin OR ethereum -is:retweet lang:en"
         
         try:
             tweets = self.x_api.search_recent_tweets(
@@ -248,9 +260,9 @@ class DataCollectionPipeline:
         """
         logger.info("Starting comprehensive data collection")
         
-        # Use default KOL list if none provided
+        # Use default KOL list if none provided - optimized for API efficiency
         if kol_usernames is None:
-            kol_usernames = self.config.crypto_kols[:3]  # Very conservative for API limits
+            kol_usernames = self.config.crypto_kols[:10]  # Increased from 3 to 10 for better coverage
         
         collection_results = {
             "kol_data": {},
@@ -260,31 +272,64 @@ class DataCollectionPipeline:
             "timestamp": datetime.utcnow().isoformat()
         }
         
-        # 1. Collect KOL data
+        # 1. Collect KOL data - optimized limits
         if kol_usernames:
-            logger.info("Phase 1: Collecting KOL data")
+            logger.info("Phase 1: Collecting KOL data (optimized)")
             collection_results["kol_data"] = self.collect_kol_data(
                 kol_usernames=kol_usernames,
-                tweets_per_kol=5  # Very conservative for API limits
+                tweets_per_kol=20  # Increased from 5 to 20 - still within rate limits
             )
         
-        # 2. Collect trending tweets
+        # 2. Collect trending tweets - optimized queries
         if collect_trending:
-            logger.info("Phase 2: Collecting trending crypto tweets")
+            logger.info("Phase 2: Collecting trending crypto tweets (optimized)")
             collection_results["trending_tweets"] = self.collect_trending_crypto_tweets(
-                max_tweets=10  # Very conservative for API limits
+                max_tweets=80  # Increased from 10 to 80 with optimized queries
             )
         
-        # 3. Collect high-engagement tweets
+        # 3. Collect high-engagement tweets - better filtering
         if collect_high_engagement:
-            logger.info("Phase 3: Collecting high-engagement tweets")
+            logger.info("Phase 3: Collecting high-engagement tweets (optimized)")
             collection_results["high_engagement_tweets"] = self.collect_high_engagement_tweets(
-                min_engagement=30,
-                max_tweets=10  # Very conservative for API limits
+                min_engagement=20,  # Reduced threshold for more content
+                max_tweets=60  # Increased from 10 to 60
             )
         
         # Update final statistics
         collection_results["collection_stats"] = self.collection_stats.copy()
+        
+        # Add deduplication across all collected tweets
+        all_collected_tweets = []
+        
+        # Collect all tweets from different sources
+        for username, tweets in collection_results["kol_data"].items():
+            for tweet in tweets:
+                tweet.source_collection = f"kol_{username}"
+                all_collected_tweets.append(tweet)
+        
+        for tweet in collection_results["trending_tweets"]:
+            tweet.source_collection = "trending"
+            all_collected_tweets.append(tweet)
+            
+        for tweet in collection_results["high_engagement_tweets"]:
+            tweet.source_collection = "high_engagement"
+            all_collected_tweets.append(tweet)
+        
+        # Deduplicate by tweet ID
+        seen_ids = set()
+        deduplicated_tweets = []
+        
+        for tweet in all_collected_tweets:
+            if tweet.id not in seen_ids:
+                seen_ids.add(tweet.id)
+                deduplicated_tweets.append(tweet)
+        
+        logger.info(f"Deduplication: {len(all_collected_tweets)} -> {len(deduplicated_tweets)} unique tweets")
+        
+        # Update collection results with deduplicated data
+        collection_results["total_unique_tweets"] = len(deduplicated_tweets)
+        collection_results["deduplicated_tweets"] = deduplicated_tweets
+        collection_results["deduplication_savings"] = len(all_collected_tweets) - len(deduplicated_tweets)
         
         # Save comprehensive results
         self._save_collection_data(collection_results, "comprehensive_collection")

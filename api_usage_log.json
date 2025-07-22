@@ -1,0 +1,29 @@
+{
+  "search": [
+    {
+      "timestamp": "2025-07-21T18:31:25.946909",
+      "success": true,
+      "response_code": 200
+    },
+    {
+      "timestamp": "2025-07-21T18:31:28.560967",
+      "success": true,
+      "response_code": 200
+    },
+    {
+      "timestamp": "2025-07-21T18:31:31.159346",
+      "success": true,
+      "response_code": 200
+    },
+    {
+      "timestamp": "2025-07-21T18:31:33.718913",
+      "success": true,
+      "response_code": 200
+    },
+    {
+      "timestamp": "2025-07-21T18:31:36.251395",
+      "success": true,
+      "response_code": 200
+    }
+  ]
+}

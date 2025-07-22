@@ -150,6 +150,10 @@ class XAPIClient:
         self.api = None
         self._setup_clients()
         
+        # Add user ID cache to avoid redundant lookups
+        self.user_id_cache = {}
+        self.cached_tweets = set()  # Track cached tweet IDs
+        
         # Initialize local data cache
         self.cache_db = self._init_cache_db()
         
@@ -231,8 +235,170 @@ class XAPIClient:
             )
         """)
         
+        # Add user ID cache table to avoid redundant API calls
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_cache (
+                username TEXT PRIMARY KEY,
+                user_id TEXT,
+                cached_at TEXT,
+                user_data TEXT
+            )
+        """)
+        
         conn.commit()
+        
+        # Load existing user cache
+        self._load_user_cache()
+        
         return conn
+    
+    def _load_user_cache(self):
+        """Load cached user IDs from database."""
+        try:
+            cursor = self.cache_db.cursor()
+            cursor.execute("SELECT username, user_id FROM user_cache")
+            for username, user_id in cursor.fetchall():
+                self.user_id_cache[username] = user_id
+            logger.info(f"Loaded {len(self.user_id_cache)} cached user IDs")
+        except Exception as e:
+            logger.error(f"Error loading user cache: {e}")
+    
+    def _get_user_id(self, username: str) -> Optional[str]:
+        """Get user ID with caching to avoid redundant API calls."""
+        # Check cache first
+        if username in self.user_id_cache:
+            return self.user_id_cache[username]
+        
+        # Check rate limits for user lookup
+        if not self.rate_limiter.can_make_request("user_lookup"):
+            wait_time = self.rate_limiter.wait_for_reset("user_lookup")
+            logger.warning(f"Rate limit reached for user_lookup. Waiting {wait_time:.1f}s")
+            time.sleep(wait_time + 1)
+        
+        try:
+            self.rate_limiter.record_request("user_lookup")
+            user = self.client.get_user(username=username)
+            
+            if user and user.data:
+                user_id = user.data.id
+                # Cache the result
+                self.user_id_cache[username] = user_id
+                
+                # Store in database
+                cursor = self.cache_db.cursor()
+                cursor.execute("""
+                    INSERT OR REPLACE INTO user_cache 
+                    (username, user_id, cached_at, user_data)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    username, 
+                    user_id, 
+                    datetime.utcnow().isoformat(),
+                    json.dumps({"verified": getattr(user.data, 'verified', False)})
+                ))
+                self.cache_db.commit()
+                
+                return user_id
+            else:
+                logger.warning(f"User not found: {username}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting user ID for {username}: {e}")
+            return None
+    
+    def batch_get_user_ids(self, usernames: List[str]) -> Dict[str, str]:
+        """Get multiple user IDs efficiently, using cache where possible."""
+        user_ids = {}
+        uncached_usernames = []
+        
+        # Check cache first
+        for username in usernames:
+            if username in self.user_id_cache:
+                user_ids[username] = self.user_id_cache[username]
+            else:
+                uncached_usernames.append(username)
+        
+        if not uncached_usernames:
+            return user_ids
+        
+        # Batch lookup for uncached users (up to 100 at a time)
+        for i in range(0, len(uncached_usernames), 100):
+            batch = uncached_usernames[i:i+100]
+            
+            if not self.rate_limiter.can_make_request("user_lookup"):
+                wait_time = self.rate_limiter.wait_for_reset("user_lookup")
+                logger.warning(f"Rate limit reached for user_lookup. Waiting {wait_time:.1f}s")
+                time.sleep(wait_time + 1)
+            
+            try:
+                self.rate_limiter.record_request("user_lookup")
+                response = self.client.get_users(usernames=batch)
+                
+                if response and response.data:
+                    for user in response.data:
+                        username = user.username
+                        user_id = user.id
+                        
+                        # Cache the result
+                        self.user_id_cache[username] = user_id
+                        user_ids[username] = user_id
+                        
+                        # Store in database
+                        cursor = self.cache_db.cursor()
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO user_cache 
+                            (username, user_id, cached_at, user_data)
+                            VALUES (?, ?, ?, ?)
+                        """, (
+                            username, 
+                            user_id, 
+                            datetime.utcnow().isoformat(),
+                            json.dumps({"verified": getattr(user, 'verified', False)})
+                        ))
+                    self.cache_db.commit()
+                    
+            except Exception as e:
+                logger.error(f"Error in batch user lookup: {e}")
+        
+        return user_ids
+    
+    def _check_cached_tweets(self, query_params: Dict) -> List[TweetData]:
+        """Check if we have cached tweets that match the query."""
+        try:
+            cursor = self.cache_db.cursor()
+            
+            # For now, simple cache check based on recency (last 1 hour)
+            recent_cutoff = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+            
+            cursor.execute("""
+                SELECT id, author_username, text, created_at, public_metrics, 
+                       context_annotations, source_api
+                FROM tweets 
+                WHERE cached_at > ? 
+                ORDER BY cached_at DESC 
+                LIMIT 50
+            """, (recent_cutoff,))
+            
+            cached_tweets = []
+            for row in cursor.fetchall():
+                tweet_data = TweetData(
+                    id=row[0],
+                    author_id="cached",  # We don't store author_id in old schema
+                    author_username=row[1],
+                    text=row[2],
+                    created_at=datetime.fromisoformat(row[3].replace('Z', '')),
+                    public_metrics=json.loads(row[4]) if row[4] else {},
+                    context_annotations=json.loads(row[5]) if row[5] else [],
+                    source_api=row[6]
+                )
+                cached_tweets.append(tweet_data)
+            
+            return cached_tweets
+            
+        except Exception as e:
+            logger.error(f"Error checking cached tweets: {e}")
+            return []
     
     def search_recent_tweets(self, query: str, max_results: int = 10,
                            tweet_fields: List[str] = None,
@@ -302,8 +468,8 @@ class XAPIClient:
                 if hasattr(tweet, 'context_annotations') and tweet.context_annotations:
                     context_annotations = [
                         {
-                            'domain': ann.domain.name if ann.domain else None,
-                            'entity': ann.entity.name if ann.entity else None
+                            'domain': ann.domain.name if hasattr(ann, 'domain') and ann.domain else None,
+                            'entity': ann.entity.name if hasattr(ann, 'entity') and ann.entity else None
                         }
                         for ann in tweet.context_annotations
                     ]
@@ -342,13 +508,11 @@ class XAPIClient:
         endpoint = "user_tweets"
         
         try:
-            # Get user ID first
-            user = self.client.get_user(username=username)
-            if not user or not user.data:
+            # Get user ID from cache (avoids redundant API calls)
+            user_id = self._get_user_id(username)
+            if not user_id:
                 logger.warning(f"User not found: {username}")
                 return []
-            
-            user_id = user.data.id
             
             # Check rate limits
             if not self.rate_limiter.can_make_request(endpoint):
@@ -387,8 +551,8 @@ class XAPIClient:
                 if hasattr(tweet, 'context_annotations') and tweet.context_annotations:
                     context_annotations = [
                         {
-                            'domain': ann.domain.name if ann.domain else None,
-                            'entity': ann.entity.name if ann.entity else None
+                            'domain': ann.domain.name if hasattr(ann, 'domain') and ann.domain else None,
+                            'entity': ann.entity.name if hasattr(ann, 'entity') and ann.entity else None
                         }
                         for ann in tweet.context_annotations
                     ]

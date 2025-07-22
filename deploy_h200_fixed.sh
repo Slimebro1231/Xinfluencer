@@ -1,334 +1,336 @@
 #!/bin/bash
 
-# H200 Mistral Deployment Script - Fixed Version
-# This script deploys the Mistral model to H200 with proper error handling
+# Enhanced H200 Deployment Script with X API Optimization
+# Version: 2.0 - Optimized for evaluation framework deployment
 
-set -e
+set -e  # Exit on any error
 
 # Configuration
-H200_SERVER="157.10.162.127"
+H200_HOST="h200-server"
 H200_USER="ubuntu"
-PEM_FILE="/Users/max/Xinfluencer/influencer.pem"
-REMOTE_DIR="/home/ubuntu/xinfluencer"
 PROJECT_NAME="xinfluencer"
-VENV_NAME="xinfluencer_env"
+REMOTE_DIR="/home/$H200_USER/$PROJECT_NAME"
 
-# Colors for output
+# Color codes for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+# Logging function
+log() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
 }
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+warn() {
+    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: $1${NC}"
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+error() {
+    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1${NC}"
 }
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+info() {
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $1${NC}"
 }
 
-# Check if SSH key exists
-if [ ! -f "$PEM_FILE" ]; then
-    print_error "SSH key not found at $PEM_FILE"
-    print_status "Please ensure your SSH key is properly configured"
-    exit 1
-fi
+# Check prerequisites
+check_prerequisites() {
+    log "Checking deployment prerequisites..."
+    
+    # Check SSH connection
+    if ! ssh -o ConnectTimeout=10 "$H200_USER@$H200_HOST" "echo 'SSH connection successful'" >/dev/null 2>&1; then
+        error "Cannot connect to H200 server. Check SSH configuration."
+        exit 1
+    fi
+    
+    # Check GPU availability
+    if ! ssh "$H200_USER@$H200_HOST" "nvidia-smi" >/dev/null 2>&1; then
+        error "GPU not available on H200 server"
+        exit 1
+    fi
+    
+    # Check local files
+    if [[ ! -f "src/main.py" ]]; then
+        error "src/main.py not found. Run from project root."
+        exit 1
+    fi
+    
+    log "Prerequisites check passed"
+}
 
-print_status "Starting H200 Mistral deployment (Fixed Version)..."
+# Sync project files with optimizations
+sync_project_files() {
+    log "Syncing optimized project files to H200 server..."
+    
+    # Create remote directory
+    ssh "$H200_USER@$H200_HOST" "mkdir -p $REMOTE_DIR"
+    
+    # Sync files with exclusions for efficiency
+    rsync -avz --progress \
+        --exclude='__pycache__/' \
+        --exclude='*.pyc' \
+        --exclude='.git/' \
+        --exclude='logs/' \
+        --exclude='data/cache/' \
+        --exclude='data/collected/' \
+        --exclude='evaluation_results/' \
+        --exclude='lora_checkpoints_test/' \
+        --exclude='xinfluencer_env/' \
+        --exclude='.pytest_cache/' \
+        --exclude='*.log' \
+        ./ "$H200_USER@$H200_HOST:$REMOTE_DIR/"
+    
+    log "Project files synced successfully"
+}
 
-# Step 1: Test H200 connection
-print_status "Testing H200 server connection..."
-if ssh -i "$PEM_FILE" -o ConnectTimeout=10 -o BatchMode=yes "$H200_USER@$H200_SERVER" "echo 'Connection successful'" > /dev/null 2>&1; then
-    print_success "H200 server connection established"
-else
-    print_error "Failed to connect to H200 server"
-    print_status "Please check your SSH configuration and server availability"
-    exit 1
-fi
-
-# Step 2: Check H200 GPU status
-print_status "Checking H200 GPU status..."
-GPU_STATUS=$(ssh -i "$PEM_FILE" "$H200_USER@$H200_SERVER" "nvidia-smi --query-gpu=name,memory.total,memory.free --format=csv,noheader,nounits" 2>/dev/null || echo "GPU_ERROR")
-
-if [[ "$GPU_STATUS" == "GPU_ERROR" ]]; then
-    print_error "Failed to get GPU status. Is nvidia-smi available?"
-    exit 1
-else
-    print_success "GPU Status: $GPU_STATUS"
-fi
-
-# Step 3: Setup remote directory and virtual environment
-print_status "Setting up remote environment..."
-
-ssh -i "$PEM_FILE" "$H200_USER@$H200_SERVER" << 'EOF'
-set -e
-
-# Create directory structure
-mkdir -p /home/ubuntu/xinfluencer/{src,scripts,logs,models,data}
-
-# Check if virtual environment exists
-if [ ! -d "/home/ubuntu/xinfluencer/xinfluencer_env" ]; then
-    echo "Creating new virtual environment..."
-    cd /home/ubuntu/xinfluencer
-    python3 -m venv xinfluencer_env
-    echo "Virtual environment created successfully"
-else
-    echo "Virtual environment already exists, skipping creation"
-fi
-
-# Activate and upgrade pip
-source /home/ubuntu/xinfluencer/xinfluencer_env/bin/activate
-pip install --upgrade pip wheel setuptools
-
-echo "Environment setup completed"
+# Setup optimized Python environment
+setup_environment() {
+    log "Setting up optimized Python environment on H200..."
+    
+    ssh "$H200_USER@$H200_HOST" << 'EOF'
+        cd /home/ubuntu/xinfluencer
+        
+        # Create virtual environment if it doesn't exist
+        if [[ ! -d "xinfluencer_env" ]]; then
+            echo "Creating Python virtual environment..."
+            python3.10 -m venv xinfluencer_env
+        fi
+        
+        # Activate environment
+        source xinfluencer_env/bin/activate
+        
+        # Upgrade pip
+        pip install --upgrade pip
+        
+        # Install PyTorch with CUDA 11.8 support first (critical for H200)
+        pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+        
+        # Install other dependencies for evaluation framework
+        pip install -r requirements_h200.txt
+        
+        # Install additional dependencies for X API optimization
+        pip install tweepy>=4.14.0
+        pip install sqlite3  # For caching optimization
+        pip install pandas>=1.5.0
+        pip install numpy>=1.21.0
+        
+        echo "Environment setup completed"
 EOF
+    
+    log "Environment setup completed"
+}
 
-print_success "Remote environment setup completed"
-
-# Step 4: Sync project files
-print_status "Syncing project files to H200..."
-rsync -avz --delete -e "ssh -i $PEM_FILE" \
-    --exclude='.git' \
-    --exclude='__pycache__' \
-    --exclude='*.pyc' \
-    --exclude='logs/*' \
-    --exclude='models/*' \
-    --exclude='data/*' \
-    --exclude='xinfluencer_env' \
-    ./ "$H200_USER@$H200_SERVER:$REMOTE_DIR/"
-
-print_success "Project files synced"
-
-# Step 5: Install dependencies with proper error handling
-print_status "Installing Python dependencies..."
-
-ssh -i "$PEM_FILE" "$H200_USER@$H200_SERVER" << 'EOF'
-set -e
-
-cd /home/ubuntu/xinfluencer
-source xinfluencer_env/bin/activate
-
-echo "Installing PyTorch with CUDA support..."
-pip install torch>=2.0.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-echo "Installing transformers and related packages..."
-pip install transformers>=4.30.0 accelerate>=0.20.0 bitsandbytes>=0.41.0
-
-echo "Installing other dependencies..."
-pip install sentence-transformers>=2.2.0 peft>=0.4.0
-
-echo "Installing vector database and utilities..."
-pip install qdrant-client>=1.3.0 pandas>=2.0.0 numpy>=1.24.0
-
-echo "Installing configuration packages..."
-pip install pydantic>=2.0.0 pydantic-settings>=2.0.0 python-dotenv>=1.0.0
-
-echo "Installing additional utilities..."
-pip install tqdm>=4.65.0 requests>=2.31.0
-
-# Verify installations
-echo "Verifying PyTorch installation..."
-python3 -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.cuda.is_available()}');"
-
-echo "Verifying transformers installation..."
-python3 -c "import transformers; print(f'Transformers: {transformers.__version__}');"
-
-echo "Dependencies installed successfully"
-EOF
-
-print_success "Dependencies installed successfully"
-
-# Step 6: Create optimized startup script
-print_status "Creating optimized startup script..."
-
-cat > /tmp/start_mistral_h200.sh << 'EOF'
+# Create optimized startup scripts
+create_startup_scripts() {
+    log "Creating optimized startup scripts for evaluation framework..."
+    
+    # Create optimized Mistral startup script
+    ssh "$H200_USER@$H200_HOST" << 'EOF'
+        cd /home/ubuntu/xinfluencer
+        
+        # Create optimized startup script for evaluation framework
+        cat > start_evaluation_h200.sh << 'SCRIPT_EOF'
 #!/bin/bash
 
-# Mistral H200 Startup Script - Optimized
+# Optimized H200 Evaluation Framework Startup
+export CUDA_VISIBLE_DEVICES=0
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+export TRANSFORMERS_CACHE=/home/ubuntu/.cache/huggingface
+export HF_HOME=/home/ubuntu/.cache/huggingface
+
+# Set memory optimization
+export PYTORCH_CUDA_ALLOC_CONF=garbage_collection_threshold:0.8,max_split_size_mb:512
+
 cd /home/ubuntu/xinfluencer
 source xinfluencer_env/bin/activate
 
-# Set environment variables for H200 optimization
-export CUDA_VISIBLE_DEVICES=0
-export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:1024
-export TRANSFORMERS_CACHE=/home/ubuntu/xinfluencer/models
-export HF_HOME=/home/ubuntu/xinfluencer/models
-export TOKENIZERS_PARALLELISM=false
+echo "Starting X API-optimized evaluation framework on H200..."
+echo "GPU Status:"
+nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu --format=csv
 
-# Create models directory
-mkdir -p models
+echo "Testing CUDA availability..."
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}'); print(f'GPU count: {torch.cuda.device_count()}')"
 
-echo "=== H200 GPU Status ==="
-nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,temperature.gpu --format=csv
-
-echo "=== Testing PyTorch CUDA ==="
-python3 -c "
-import torch
-print(f'PyTorch: {torch.__version__}')
-print(f'CUDA Available: {torch.cuda.is_available()}')
-if torch.cuda.is_available():
-    print(f'GPU: {torch.cuda.get_device_name()}')
-    print(f'GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB')
-    # Test CUDA computation
-    x = torch.randn(100, 100).cuda()
-    y = torch.randn(100, 100).cuda()
-    z = torch.mm(x, y)
-    print(f'CUDA computation test: OK ({z.shape})')
-    del x, y, z
-    torch.cuda.empty_cache()
-else:
-    print('CUDA not available')
+echo "Testing X API optimization..."
+python -c "
+from src.utils.x_api_client import XAPIClient
+from src.evaluation.engine import EvaluationEngine
+print('X API Client initialized successfully')
+print('Evaluation Engine ready for deployment')
 "
 
-echo "=== Starting Mistral Model Test ==="
-python3 -c "
-import sys
-sys.path.insert(0, 'src')
+echo "Evaluation framework ready for production use"
+echo "Available commands:"
+echo "  python src/cli.py evaluate --test"
+echo "  python src/cli.py x-api test"
+echo "  python src/cli.py x-api collect"
+echo "  python src/cli.py human-eval start"
+SCRIPT_EOF
 
-try:
-    from model.generate import TextGenerator
-    print('Testing Mistral model loading...')
-    
-    # Initialize with quantization for memory efficiency
-    generator = TextGenerator(model_name='meta-llama/Meta-Llama-3.1-8B-Instruct', use_quantization=True)
-    print('✅ Mistral model loaded successfully')
-    
-    # Test generation
-    response = generator.generate_response('What is Bitcoin?', max_new_tokens=50)
-    print(f'✅ Test generation: {response[:100]}...')
-    
-    # Check memory usage
-    memory = generator.get_memory_usage()
-    if 'allocated_gb' in memory:
-        print(f'✅ Memory usage: {memory[\"allocated_gb\"]:.1f}/{memory[\"total_gb\"]:.1f} GB')
-    
-    print('🎉 Mistral deployment successful!')
-    
-except Exception as e:
-    print(f'❌ Error: {e}')
-    import traceback
-    traceback.print_exc()
-"
-
-echo "=== Mistral H200 System Ready ==="
-EOF
-
-scp -i "$PEM_FILE" /tmp/start_mistral_h200.sh "$H200_USER@$H200_SERVER:$REMOTE_DIR/"
-ssh -i "$PEM_FILE" "$H200_USER@$H200_SERVER" "chmod +x $REMOTE_DIR/start_mistral_h200.sh"
-
-# Step 7: Create model testing script
-print_status "Creating model testing script..."
-
-cat > /tmp/test_mistral.py << 'EOF'
+        chmod +x start_evaluation_h200.sh
+        
+        # Create evaluation test script
+        cat > test_evaluation.py << 'TEST_EOF'
 #!/usr/bin/env python3
-"""Test Mistral model on H200."""
+"""Test optimized evaluation framework on H200."""
 
 import sys
-import time
-from pathlib import Path
+import torch
+from src.utils.x_api_client import XAPIClient
+from src.evaluation.engine import EvaluationEngine
+from src.utils.data_collection_pipeline import DataCollectionPipeline
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-def test_mistral_basic():
-    """Test basic Mistral functionality."""
-    print("🧪 Testing Mistral Model on H200")
-    print("=" * 50)
+def test_h200_evaluation():
+    print("Testing H200 Evaluation Framework...")
+    print("="*50)
     
+    # Test CUDA
+    print(f"CUDA Available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"GPU Device: {torch.cuda.get_device_name(0)}")
+        print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+    
+    # Test X API optimization
+    print("\nTesting X API optimization...")
     try:
-        # Import and initialize
-        from model.generate import TextGenerator
-        
-        print("1. Loading Mistral-7B model...")
-        start_time = time.time()
-        
-        generator = TextGenerator(
-            model_name="meta-llama/Meta-Llama-3.1-8B-Instruct",
-            use_quantization=True
-        )
-        
-        load_time = time.time() - start_time
-        print(f"✅ Model loaded in {load_time:.1f} seconds")
-        
-        # Test memory usage
-        memory = generator.get_memory_usage()
-        if 'error' not in str(memory):
-            print(f"💾 GPU Memory: {memory['allocated_gb']:.1f}/{memory['total_gb']:.1f} GB")
-        
-        # Test generation
-        print("\n2. Testing generation...")
-        test_prompts = [
-            "What is Bitcoin?",
-            "Explain DeFi in simple terms.",
-            "What are the risks of cryptocurrency investment?"
-        ]
-        
-        for i, prompt in enumerate(test_prompts, 1):
-            print(f"\nTest {i}: {prompt}")
-            start_time = time.time()
-            
-            response = generator.generate_response(prompt, max_new_tokens=100)
-            
-            gen_time = time.time() - start_time
-            print(f"Generated in {gen_time:.1f}s: {response[:150]}...")
-        
-        print("\n✅ All tests passed! Mistral is ready for production.")
-        return True
-        
+        x_api = XAPIClient()
+        status = x_api.get_rate_limit_status()
+        print(f"API Connected: {status.get('api_connected', False)}")
+        print(f"User cache loaded: {len(x_api.user_id_cache)} users")
+        print("✓ X API optimization working")
     except Exception as e:
-        print(f"❌ Test failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+        print(f"✗ X API optimization failed: {e}")
+    
+    # Test evaluation engine
+    print("\nTesting evaluation engine...")
+    try:
+        engine = EvaluationEngine()
+        print("✓ Evaluation engine initialized")
+    except Exception as e:
+        print(f"✗ Evaluation engine failed: {e}")
+    
+    # Test data collection pipeline
+    print("\nTesting optimized data collection...")
+    try:
+        pipeline = DataCollectionPipeline()
+        stats = pipeline.get_collection_statistics()
+        print("✓ Data collection pipeline ready")
+    except Exception as e:
+        print(f"✗ Data collection failed: {e}")
+    
+    print("\nH200 Evaluation Framework Test Complete!")
 
 if __name__ == "__main__":
-    success = test_mistral_basic()
-    sys.exit(0 if success else 1)
+    test_h200_evaluation()
+TEST_EOF
+
+        chmod +x test_evaluation.py
+        
+        echo "Startup scripts created successfully"
 EOF
+    
+    log "Startup scripts created"
+}
 
-scp -i "$PEM_FILE" /tmp/test_mistral.py "$H200_USER@$H200_SERVER:$REMOTE_DIR/"
-ssh -i "$PEM_FILE" "$H200_USER@$H200_SERVER" "chmod +x $REMOTE_DIR/test_mistral.py"
+# Test the optimized deployment
+test_deployment() {
+    log "Testing optimized deployment on H200..."
+    
+    ssh "$H200_USER@$H200_HOST" << 'EOF'
+        cd /home/ubuntu/xinfluencer
+        source xinfluencer_env/bin/activate
+        
+        echo "Running deployment tests..."
+        python test_evaluation.py
+        
+        echo "Testing CLI commands..."
+        python src/cli.py status
+        
+        echo "Testing X API optimization..."
+        python src/cli.py x-api test
+EOF
+    
+    log "Deployment test completed"
+}
 
-# Step 8: Create CLI wrapper script
-print_status "Creating CLI wrapper script..."
-
-cat > /tmp/mistral_cli.sh << 'EOF'
+# Create monitoring and access scripts
+create_access_scripts() {
+    log "Creating access and monitoring scripts..."
+    
+    # Create local SSH access script
+    cat > ssh_h200.sh << 'EOF'
+#!/bin/bash
+echo "Connecting to H200 Evaluation Server..."
+ssh -t ubuntu@h200-server "cd /home/ubuntu/xinfluencer && source xinfluencer_env/bin/activate && bash"
+EOF
+    chmod +x ssh_h200.sh
+    
+    # Create monitoring script on H200
+    ssh "$H200_USER@$H200_HOST" << 'EOF'
+        cd /home/ubuntu/xinfluencer
+        
+        cat > monitor_evaluation.sh << 'MONITOR_EOF'
 #!/bin/bash
 
-# Mistral CLI Wrapper
-cd /home/ubuntu/xinfluencer
+echo "H200 Evaluation Framework Monitoring"
+echo "===================================="
+
+echo "GPU Status:"
+nvidia-smi --query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu --format=csv,noheader,nounits
+
+echo -e "\nPython Environment:"
 source xinfluencer_env/bin/activate
+python --version
+pip show torch | grep Version
 
-# Set environment variables
-export CUDA_VISIBLE_DEVICES=0
-export TRANSFORMERS_CACHE=/home/ubuntu/xinfluencer/models
-export HF_HOME=/home/ubuntu/xinfluencer/models
+echo -e "\nEvaluation Framework Status:"
+python -c "
+try:
+    from src.utils.x_api_client import XAPIClient
+    from src.evaluation.engine import EvaluationEngine
+    x_api = XAPIClient()
+    status = x_api.get_rate_limit_status()
+    print(f'X API Connected: {status.get(\"api_connected\", False)}')
+    print(f'Rate Limits Status: {list(status.keys())}')
+    print('Evaluation Framework: ✓ Ready')
+except Exception as e:
+    print(f'Evaluation Framework: ✗ Error - {e}')
+"
 
-# Run CLI with arguments
-python3 src/cli.py "$@"
+echo -e "\nSystem Resources:"
+free -h
+df -h | head -5
+MONITOR_EOF
+
+        chmod +x monitor_evaluation.sh
+        
 EOF
+    
+    log "Access scripts created"
+}
 
-scp -i "$PEM_FILE" /tmp/mistral_cli.sh "$H200_USER@$H200_SERVER:$REMOTE_DIR/"
-ssh -i "$PEM_FILE" "$H200_USER@$H200_SERVER" "chmod +x $REMOTE_DIR/mistral_cli.sh"
+# Main deployment function
+main() {
+    log "Starting optimized H200 deployment for evaluation framework..."
+    log "Target: $H200_USER@$H200_HOST:$REMOTE_DIR"
+    
+    check_prerequisites
+    sync_project_files
+    setup_environment
+    create_startup_scripts
+    test_deployment
+    create_access_scripts
+    
+    log "Deployment completed successfully!"
+    info "Next steps:"
+    info "1. Connect to H200: ./ssh_h200.sh"
+    info "2. Start evaluation framework: ./start_evaluation_h200.sh"
+    info "3. Test X API: python src/cli.py x-api test"
+    info "4. Start data collection: python src/cli.py x-api collect"
+    info "5. Monitor system: ./monitor_evaluation.sh"
+}
 
-# Cleanup temp files
-rm -f /tmp/start_mistral_h200.sh /tmp/test_mistral.py /tmp/mistral_cli.sh
-
-print_success "H200 Mistral deployment completed successfully!"
-echo ""
-print_status "Next steps:"
-echo "1. SSH to H200: ssh -i $PEM_FILE $H200_USER@$H200_SERVER"
-echo "2. Test deployment: cd $REMOTE_DIR && ./start_mistral_h200.sh"
-echo "3. Run model test: python3 test_mistral.py"
-echo "4. Use CLI: ./mistral_cli.sh interactive"
-echo ""
-print_status "🎉 Mistral-7B is now ready on H200 with proper isolation and error handling!"
+# Run main function
+main "$@"

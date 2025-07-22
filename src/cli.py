@@ -31,8 +31,10 @@ from utils.logger import setup_logger
 from utils.twitter_service import TwitterService
 from utils.x_api_client import XAPIClient
 from utils.data_collection_pipeline import DataCollectionPipeline
+from utils.enhanced_data_collection import EnhancedDataCollectionPipeline
 from utils.engagement_tracker import EngagementTracker
 from webapp.human_evaluator import HumanEvaluationApp, HumanEvaluationDB
+from training.identity_pipeline import IdentityTrainingPipeline
 from config import Config
 
 def _handle_twitter_command(args):
@@ -61,33 +63,35 @@ def _handle_twitter_command(args):
             for cred_name, available in creds.items():
                 status = "✓" if available else "✗"
                 print(f"  {status} {cred_name}")
+            
+            # Test connection
+            connection_test = twitter_service.test_connection()
+            print(f"\nConnection Test:")
+            print(f"Can read: {connection_test['can_read']}")
+            print(f"Can post: {connection_test['can_post']}")
+            
+            if connection_test['errors']:
+                print(f"\nErrors:")
+                for error in connection_test['errors']:
+                    print(f"  - {error}")
         
         elif args.twitter_command == 'test':
             print("\nTesting Twitter API connection...")
             print("=" * 40)
             
+            # Test connection
             connection_test = twitter_service.test_connection()
             
-            print(f"OAuth 2.0 available: {connection_test['oauth2_available']}")
-            print(f"OAuth 1.0a available: {connection_test['oauth1_available']}")
-            print(f"Can post tweets: {connection_test['can_post']}")
-            
-            if connection_test['user_info']:
-                user = connection_test['user_info']
-                print(f"\nAuthenticated as:")
-                print(f"  Username: @{user['username']}")
-                print(f"  Name: {user['name']}")
-                print(f"  ID: {user['id']}")
+            print(f"Can read: {connection_test['can_read']}")
+            print(f"Can post: {connection_test['can_post']}")
+            print(f"Rate limits available: {connection_test['rate_limits_available']}")
             
             if connection_test['errors']:
-                print(f"\nErrors encountered:")
+                print(f"\nErrors:")
                 for error in connection_test['errors']:
                     print(f"  - {error}")
-            
-            if connection_test['can_post']:
-                print("\n✓ Twitter API is ready for posting!")
             else:
-                print("\n✗ Twitter API is not ready for posting")
+                print("\n✓ Twitter API connection successful!")
         
         elif args.twitter_command == 'post':
             if not args.text:
@@ -120,6 +124,157 @@ def _handle_twitter_command(args):
     
     except Exception as e:
         print(f"Error in Twitter command: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def _handle_enhanced_collection_command(args):
+    """Handle enhanced data collection commands."""
+    if not args.enhanced_command:
+        print("Enhanced collection command required")
+        return
+    
+    try:
+        pipeline = EnhancedDataCollectionPipeline()
+        
+        if args.enhanced_command == 'safe-collect':
+            target_posts = getattr(args, 'target_posts', 500)
+            save_training = not getattr(args, 'no_training', False)
+            
+            print(f"\nStarting safe collection (target: {target_posts} posts)")
+            print("=" * 50)
+            
+            results = pipeline.safe_collect_crypto_content(
+                target_posts=target_posts,
+                save_for_training=save_training
+            )
+            
+            if results.get('success', True):
+                print(f"\nCollection Results:")
+                print(f"Posts collected: {results['total_posts_collected']}")
+                print(f"Training posts stored: {results['training_posts_stored']}")
+                print(f"Collection efficiency: {results['collection_efficiency']:.1f} posts/API call")
+                print(f"Session ID: {results['session_id']}")
+                print(f"Duration: {results['duration_seconds']:.1f} seconds")
+                
+                safeguard_status = results['safeguard_status']
+                print(f"\nUsage Status:")
+                print(f"Posts last hour: {safeguard_status['posts_last_hour']}")
+                print(f"Posts last day: {safeguard_status['posts_last_day']}")
+            else:
+                print(f"Collection failed: {results.get('error', 'Unknown error')}")
+        
+        elif args.enhanced_command == 'training-stats':
+            print("\nTraining Data Statistics:")
+            print("=" * 40)
+            
+            stats = pipeline.get_training_data_stats()
+            
+            if 'error' not in stats:
+                print(f"Total posts: {stats['total_posts']}")
+                print(f"High quality posts: {stats['high_quality_posts']}")
+                print(f"High crypto relevance: {stats['high_crypto_relevance']}")
+                
+                print(f"\nTop authors:")
+                for author, count in list(stats['top_authors'].items())[:5]:
+                    print(f"  {author}: {count} posts")
+                
+                print(f"\nRecent sessions:")
+                for session, count in list(stats['recent_sessions'].items())[:3]:
+                    print(f"  {session}: {count} posts")
+            else:
+                print(f"Error getting stats: {stats['error']}")
+        
+        elif args.enhanced_command == 'status':
+            print("\nEnhanced Collection Status:")
+            print("=" * 40)
+            
+            # Check safeguard status
+            limits_check = pipeline.safeguard.check_post_limits()
+            print(f"Can collect: {limits_check['can_collect']}")
+            print(f"Posts this hour: {limits_check['posts_last_hour']}/{limits_check['hourly_limit']}")
+            print(f"Posts today: {limits_check['posts_last_day']}/{limits_check['daily_limit']}")
+            
+            # Training data stats
+            training_stats = pipeline.get_training_data_stats()
+            print(f"\nTraining data available: {training_stats.get('total_posts', 0)} posts")
+            print(f"High quality available: {training_stats.get('high_quality_posts', 0)} posts")
+        
+        else:
+            print(f"Unknown enhanced collection command: {args.enhanced_command}")
+    
+    except Exception as e:
+        print(f"Error in enhanced collection: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def _handle_identity_training_command(args):
+    """Handle identity training commands."""
+    if not args.identity_command:
+        print("Identity training command required")
+        return
+    
+    try:
+        pipeline = IdentityTrainingPipeline()
+        
+        if args.identity_command == 'train':
+            print("\nStarting identity training...")
+            print("=" * 40)
+            
+            output_dir = getattr(args, 'output_dir', 'lora_checkpoints/identity')
+            adapter_path = pipeline.train_identity_model(output_dir=output_dir)
+            
+            if adapter_path:
+                print(f"\n✓ Identity training completed!")
+                print(f"Adapter saved to: {adapter_path}")
+            else:
+                print("✗ Identity training failed")
+        
+        elif args.identity_command == 'status':
+            print("\nIdentity Training Status:")
+            print("=" * 40)
+            
+            status = pipeline.get_training_status()
+            
+            storage_stats = status['storage_stats']
+            print(f"Available training posts: {storage_stats.get('total_posts', 0)}")
+            print(f"High quality posts: {storage_stats.get('high_quality_posts', 0)}")
+            print(f"Ready for training: {status['available_for_training']}")
+            
+            if status['recent_training']:
+                recent = status['recent_training']
+                print(f"\nLast training:")
+                print(f"  Timestamp: {recent['timestamp']}")
+                print(f"  Examples used: {recent['training_stats']['total_examples']}")
+                print(f"  Average quality: {recent['training_stats']['avg_quality']:.3f}")
+                print(f"  Adapter: {recent['adapter_path']}")
+        
+        elif args.identity_command == 'quality-check':
+            print("\nTraining Data Quality Check:")
+            print("=" * 40)
+            
+            training_examples = pipeline.get_high_quality_training_data()
+            
+            if training_examples:
+                print(f"High-quality examples found: {len(training_examples)}")
+                print(f"\nTop examples by quality:")
+                
+                # Sort by weight and show top 3
+                sorted_examples = sorted(training_examples, key=lambda x: x['weight'], reverse=True)
+                for i, example in enumerate(sorted_examples[:3], 1):
+                    print(f"\n{i}. Author: {example['author']}")
+                    print(f"   Weight: {example['weight']:.3f}")
+                    print(f"   Text: {example['response'][:80]}...")
+            else:
+                print("No high-quality training examples available")
+                print("Run 'enhanced safe-collect' to gather training data")
+        
+        else:
+            print(f"Unknown identity training command: {args.identity_command}")
+    
+    except Exception as e:
+        print(f"Error in identity training: {e}")
         import traceback
         traceback.print_exc()
 
@@ -850,11 +1005,15 @@ Examples:
   # Generate text
   %(prog)s generate "What is Bitcoin?" --temperature 0.8
 
-  # Run RAG query
-  %(prog)s rag "Latest DeFi trends" --max-results 5
+  # Enhanced data collection
+  %(prog)s enhanced safe-collect --target-posts 300
+  %(prog)s enhanced training-stats
+  %(prog)s enhanced status
 
-  # Review content
-  %(prog)s review "Bitcoin will reach 100k by 2024"
+  # Identity training
+  %(prog)s identity train
+  %(prog)s identity status
+  %(prog)s identity quality-check
 
   # Twitter operations
   %(prog)s twitter test
@@ -863,18 +1022,9 @@ Examples:
   # X API data collection
   %(prog)s x-api test
   %(prog)s x-api collect --kols VitalikButerin,elonmusk
-  %(prog)s x-api track --tweet-ids 1234567890,0987654321
-
-  # Human evaluation interface
-  %(prog)s human-eval demo-tasks
-  %(prog)s human-eval start
-  %(prog)s human-eval stats
 
   # Interactive mode
   %(prog)s interactive
-
-  # Remote execution
-  %(prog)s generate "What is Ethereum?" --remote --model llama
         """
     )
     
@@ -986,6 +1136,35 @@ Examples:
     # Human eval demo tasks
     human_eval_demo_parser = human_eval_subparsers.add_parser('demo-tasks', help='Create demo evaluation tasks')
 
+    # Enhanced data collection commands
+    enhanced_parser = subparsers.add_parser('enhanced', help='Enhanced data collection with training integration')
+    enhanced_subparsers = enhanced_parser.add_subparsers(dest='enhanced_command', help='Enhanced collection commands')
+    
+    # Safe collect command
+    safe_collect_parser = enhanced_subparsers.add_parser('safe-collect', help='Safely collect crypto content')
+    safe_collect_parser.add_argument('--target-posts', type=int, default=500, help='Target number of posts to collect')
+    safe_collect_parser.add_argument('--no-training', action='store_true', help='Skip storing for training')
+    
+    # Training stats command
+    training_stats_parser = enhanced_subparsers.add_parser('training-stats', help='Show training data statistics')
+    
+    # Enhanced status command
+    enhanced_status_parser = enhanced_subparsers.add_parser('status', help='Show enhanced collection status')
+    
+    # Identity training commands
+    identity_parser = subparsers.add_parser('identity', help='Identity training for crypto bot personality')
+    identity_subparsers = identity_parser.add_subparsers(dest='identity_command', help='Identity training commands')
+    
+    # Identity train command
+    identity_train_parser = identity_subparsers.add_parser('train', help='Train bot identity with collected data')
+    identity_train_parser.add_argument('--output-dir', default='lora_checkpoints/identity', help='Output directory for LoRA adapter')
+    
+    # Identity status command
+    identity_status_parser = identity_subparsers.add_parser('status', help='Show identity training status')
+    
+    # Identity quality check command
+    identity_quality_parser = identity_subparsers.add_parser('quality-check', help='Check quality of available training data')
+
     args = parser.parse_args()
     
     if not args.command:
@@ -1023,6 +1202,16 @@ Examples:
     # Execute Human Evaluation commands
     if args.command == 'human-eval':
         _handle_human_eval_command(args)
+        return
+
+    # Handle new enhanced collection commands
+    if args.command == 'enhanced':
+        _handle_enhanced_collection_command(args)
+        return
+
+    # Handle new identity training commands
+    if args.command == 'identity':
+        _handle_identity_training_command(args)
         return
 
     # Initialize components if needed

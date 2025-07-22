@@ -4,6 +4,8 @@ Soju Identity Training Script for H200
 Trains Soju persona using real Twitter data with intermediate testing checkpoints.
 """
 
+from __future__ import annotations
+
 import sys
 import os
 from pathlib import Path

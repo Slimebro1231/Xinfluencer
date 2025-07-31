@@ -15,7 +15,11 @@ from dataclasses import asdict
 from .data_collection_pipeline import DataCollectionPipeline
 from .x_api_client import XAPIClient, TweetData
 from .crypto_analyzer import CryptoIdentityAnalyzer
-from ..config import Config
+from src.evaluation.tweet_quality import TweetQualityEvaluator
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from src.config.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +149,7 @@ class TrainingDataStorage:
             text TEXT NOT NULL,
             author TEXT,
             engagement_score REAL,
-            crypto_relevance REAL,
+            relevance_score REAL,
             quality_score REAL,
             source TEXT,
             collection_session TEXT,
@@ -156,9 +160,42 @@ class TrainingDataStorage:
         """)
         
         # Create indexes
+        # Migrate old schema if needed
+        try:
+            cursor.execute("SELECT crypto_relevance FROM training_posts LIMIT 1")
+            # Old schema exists, migrate to new schema
+            cursor.execute("ALTER TABLE training_posts ADD COLUMN relevance_score REAL")
+            cursor.execute("UPDATE training_posts SET relevance_score = crypto_relevance WHERE relevance_score IS NULL")
+            print("Database schema migrated from crypto_relevance to relevance_score")
+        except sqlite3.OperationalError:
+            # Check if relevance_score column exists
+            try:
+                cursor.execute("SELECT relevance_score FROM training_posts LIMIT 1")
+                print("relevance_score column already exists")
+            except sqlite3.OperationalError:
+                # Neither column exists, create new table
+                cursor.execute("DROP TABLE IF EXISTS training_posts")
+                cursor.execute("""
+                CREATE TABLE training_posts (
+                    id TEXT PRIMARY KEY,
+                    text TEXT NOT NULL,
+                    author TEXT,
+                    engagement_score REAL,
+                    relevance_score REAL,
+                    quality_score REAL,
+                    source TEXT,
+                    collection_session TEXT,
+                    timestamp TEXT,
+                    metadata TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+                print("Created new training_posts table with relevance_score column")
+        
+        # Create indexes after schema is finalized
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_author ON training_posts(author)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_quality ON training_posts(quality_score)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_crypto_relevance ON training_posts(crypto_relevance)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_relevance_score ON training_posts(relevance_score)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_source ON training_posts(source)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_session ON training_posts(collection_session)")
         
@@ -167,7 +204,7 @@ class TrainingDataStorage:
     
     def store_collection_for_training(self, collected_data: Dict[str, Any], session_id: str):
         """Store collected data for training purposes."""
-        analyzer = CryptoIdentityAnalyzer()
+        evaluator = TweetQualityEvaluator()
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -197,18 +234,14 @@ class TrainingDataStorage:
                     # Handle TweetData objects
                     tweet_id = tweet.id
                     text = tweet.text
-                    author = tweet.username
+                    author = tweet.author_username
                     public_metrics = tweet.public_metrics
                 
-                # Calculate scores
-                engagement_score = (
-                    public_metrics.get("like_count", 0) +
-                    public_metrics.get("retweet_count", 0) * 2 +
-                    public_metrics.get("reply_count", 0)
-                ) / 100.0
-                
-                crypto_relevance = analyzer.analyze_crypto_relevance(text)
-                quality_score = analyzer.analyze_content_quality(text, public_metrics)
+                # Calculate scores using improved evaluation system
+                evaluation = evaluator.evaluate_tweet_for_training(tweet)
+                engagement_score = evaluation['engagement_score']
+                relevance_score = evaluation['relevance_score']
+                quality_score = evaluation['quality_score']
                 
                 # Store in database
                 cursor.execute("""
@@ -217,8 +250,8 @@ class TrainingDataStorage:
                  source, collection_session, timestamp, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    tweet_id, text, author, min(engagement_score, 1.0),
-                    crypto_relevance, quality_score, "enhanced_collection",
+                    tweet_id, text, author, engagement_score,
+                    relevance_score, quality_score, "enhanced_collection",
                     session_id, datetime.now().isoformat(),
                     json.dumps(public_metrics)
                 ))
@@ -234,6 +267,33 @@ class TrainingDataStorage:
         logger.info(f"Stored {stored_count} posts for training in session {session_id}")
         return stored_count
     
+    def _store_single_tweet(self, tweet_id: str, text: str, author: str, 
+                           engagement_score: float, relevance_score: float, 
+                           quality_score: float, public_metrics: Dict, 
+                           source: str, session_id: str):
+        """Helper method to store a single tweet with improved scoring."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute("""
+            INSERT OR REPLACE INTO training_posts 
+            (id, text, author, engagement_score, crypto_relevance, quality_score, 
+             source, collection_session, timestamp, metadata)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                tweet_id, text, author, engagement_score,
+                relevance_score, quality_score, source,
+                session_id, datetime.now().isoformat(),
+                json.dumps(public_metrics)
+            ))
+            
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Failed to store tweet {tweet_id}: {e}")
+        finally:
+            conn.close()
+    
     def get_training_data_stats(self) -> Dict[str, Any]:
         """Get statistics about stored training data."""
         conn = sqlite3.connect(self.db_path)
@@ -248,9 +308,9 @@ class TrainingDataStorage:
             cursor.execute("SELECT COUNT(*) FROM training_posts WHERE quality_score > 0.7")
             high_quality = cursor.fetchone()[0]
             
-            # High crypto relevance
-            cursor.execute("SELECT COUNT(*) FROM training_posts WHERE crypto_relevance > 0.8")
-            high_crypto = cursor.fetchone()[0]
+            # High relevance
+            cursor.execute("SELECT COUNT(*) FROM training_posts WHERE relevance_score > 0.8")
+            high_relevance = cursor.fetchone()[0]
             
             # Top authors
             cursor.execute("SELECT author, COUNT(*) FROM training_posts GROUP BY author ORDER BY COUNT(*) DESC LIMIT 5")
@@ -265,7 +325,7 @@ class TrainingDataStorage:
             return {
                 "total_posts": total_posts,
                 "high_quality_posts": high_quality,
-                "high_crypto_relevance": high_crypto,
+                "high_relevance": high_relevance,
                 "top_authors": top_authors,
                 "recent_sessions": recent_sessions
             }
@@ -279,7 +339,7 @@ class TrainingDataStorage:
 class EnhancedDataCollectionPipeline(DataCollectionPipeline):
     """Enhanced data collection pipeline with safe collection and training integration."""
     
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Optional[Any] = None):
         super().__init__(config)
         
         # Add safeguard and training storage
@@ -288,7 +348,7 @@ class EnhancedDataCollectionPipeline(DataCollectionPipeline):
         
         logger.info("Enhanced data collection pipeline initialized")
     
-    def safe_collect_crypto_content(self, target_posts: int = 500, 
+    def safe_collect_crypto_content(self, target_posts: int = None, 
                                   save_for_training: bool = True) -> Dict[str, Any]:
         """
         Safely collect crypto content with training integration.
@@ -304,24 +364,30 @@ class EnhancedDataCollectionPipeline(DataCollectionPipeline):
                 "limits": limits_check
             }
         
+        # Use centralized configuration for limits
+        from src.config.config_manager import config_manager
+        limits = config_manager.get_collection_limits()
+        
+        if target_posts is None:
+            target_posts = limits.get("posts_per_retrieval", 500)
+        
         logger.info(f"Starting safe collection (target: {target_posts} posts)")
         start_time = datetime.now()
         session_id = start_time.strftime("%Y%m%d_%H%M%S")
         
         # Use existing comprehensive collection with optimized parameters
         collection_results = self.run_comprehensive_collection(
-            kol_usernames=self.config.crypto_kols[:10],  # Top 10 KOLs
-            collect_trending=True,
-            collect_high_engagement=True
+            kol_usernames=config_manager.get_crypto_kols("primary")[:10],  # Top 10 KOLs
+            max_total_tweets=target_posts,
+            crypto_keywords_only=True,
+            min_engagement=0
         )
         
         # Calculate actual posts collected
-        total_posts = 0
-        if collection_results["kol_data"]:
+        total_posts = collection_results.get("total_tweets", 0)
+        if not total_posts and collection_results.get("kol_data"):
             for tweets in collection_results["kol_data"].values():
                 total_posts += len(tweets)
-        total_posts += len(collection_results["trending_tweets"])
-        total_posts += len(collection_results["high_engagement_tweets"])
         
         # Record usage
         api_calls_made = collection_results["collection_stats"].get("api_calls_made", 0)
@@ -350,4 +416,111 @@ class EnhancedDataCollectionPipeline(DataCollectionPipeline):
         }
         
         logger.info(f"Safe collection completed: {total_posts} posts, {training_posts_stored} stored for training")
-        return enhanced_results 
+        return enhanced_results
+    
+    def process_existing_json_data(self, json_files: List[str] = None) -> Dict[str, Any]:
+        """
+        Process existing JSON data with improved scoring system and update database.
+        
+        Args:
+            json_files: List of JSON file paths to process. If None, uses default files.
+            
+        Returns:
+            Dictionary with processing results
+        """
+        if json_files is None:
+            json_files = [
+                "data/collected/unified_collection_20250729_024917.json",
+                "data/collected/unified_collection_20250729_024840.json", 
+                "data/collected/kol_collection_20250728_091643.json"
+            ]
+        
+        logger.info(f"Processing {len(json_files)} existing JSON files with improved scoring")
+        
+        # Initialize improved evaluator
+        from src.evaluation.tweet_quality import TweetQualityEvaluator
+        evaluator = TweetQualityEvaluator()
+        
+        total_processed = 0
+        total_stored = 0
+        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        for json_file in json_files:
+            if not os.path.exists(json_file):
+                logger.warning(f"File not found: {json_file}")
+                continue
+                
+            logger.info(f"Processing {json_file}...")
+            
+            try:
+                with open(json_file, 'r') as f:
+                    data = json.load(f)
+                
+                # Extract tweets from author-keyed structure
+                all_tweets = []
+                if isinstance(data, dict):
+                    for author, author_tweets in data.items():
+                        if isinstance(author_tweets, list):
+                            all_tweets.extend(author_tweets)
+                elif isinstance(data, list):
+                    all_tweets = data
+                
+                logger.info(f"Found {len(all_tweets)} tweets in {json_file}")
+                
+                # Process each tweet with improved scoring
+                for i, tweet in enumerate(all_tweets):
+                    try:
+                        # Extract tweet data
+                        if isinstance(tweet, dict):
+                            tweet_id = str(tweet.get("id", f"unknown_{i}"))
+                            text = tweet.get("text", "")
+                            author = tweet.get("author_username", tweet.get("username", "unknown"))
+                            public_metrics = tweet.get("public_metrics", {})
+                        else:
+                            # Handle TweetData objects
+                            tweet_id = str(tweet.id)
+                            text = tweet.text
+                            author = tweet.author_username
+                            public_metrics = tweet.public_metrics
+                        
+                        # Skip if no text
+                        if not text or len(text.strip()) < 10:
+                            continue
+                        
+                        # Score with improved system
+                        evaluation = evaluator.evaluate_tweet_for_training(tweet)
+                        engagement_score = evaluation['engagement_score']
+                        relevance_score = evaluation['relevance_score']
+                        quality_score = evaluation['quality_score']
+                        
+                        # Store in database with improved scores
+                        self.training_storage._store_single_tweet(
+                            tweet_id, text, author, engagement_score,
+                            relevance_score, quality_score, public_metrics,
+                            "json_processing", session_id
+                        )
+                        
+                        total_stored += 1
+                        
+                        if total_stored % 50 == 0:
+                            logger.info(f"Processed {total_stored} tweets...")
+                        
+                    except Exception as e:
+                        logger.error(f"Error processing tweet {i}: {e}")
+                        continue
+                
+                total_processed += len(all_tweets)
+                
+            except Exception as e:
+                logger.error(f"Error processing {json_file}: {e}")
+                continue
+        
+        logger.info(f"JSON processing complete: {total_processed} processed, {total_stored} stored")
+        
+        return {
+            "success": True,
+            "total_processed": total_processed,
+            "total_stored": total_stored,
+            "session_id": session_id,
+            "files_processed": len(json_files)
+        } 

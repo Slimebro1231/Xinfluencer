@@ -30,12 +30,11 @@ from review.ai import AIReviewer
 from utils.logger import setup_logger
 from utils.twitter_service import TwitterService
 from utils.x_api_client import XAPIClient
-from utils.data_collection_pipeline import DataCollectionPipeline
 from utils.enhanced_data_collection import EnhancedDataCollectionPipeline
 from utils.engagement_tracker import EngagementTracker
 from webapp.human_evaluator import HumanEvaluationApp, HumanEvaluationDB
 from training.identity_pipeline import IdentityTrainingPipeline
-from config import Config
+from config import config_manager
 
 def _handle_twitter_command(args):
     """Handle Twitter-related commands."""
@@ -279,7 +278,7 @@ def _handle_identity_training_command(args):
         traceback.print_exc()
 
 
-def _run_command(command: str, remote: bool, config: Config):
+def _run_command(command: str, remote: bool, config: Any):
     """Helper to run a command locally or remotely via SSH."""
     if remote:
         pem_file = config.h200.pem_file
@@ -775,7 +774,7 @@ def _handle_x_api_command(args):
             print("\nStarting data collection...")
             print("=" * 40)
             
-            pipeline = DataCollectionPipeline()
+            pipeline = EnhancedDataCollectionPipeline()
             
             # Run comprehensive collection
             results = pipeline.run_comprehensive_collection(
@@ -795,7 +794,7 @@ def _handle_x_api_command(args):
             print("\nRunning KOL performance analysis...")
             print("=" * 40)
             
-            pipeline = DataCollectionPipeline()
+            pipeline = EnhancedDataCollectionPipeline()
             analysis = pipeline.get_kol_performance_analysis(
                 usernames=getattr(args, 'kols', None)
             )
@@ -837,7 +836,7 @@ def _handle_x_api_command(args):
             print(f"Auth Type: {api_status.get('auth_type', 'none')}")
             
             # Data collection status
-            pipeline = DataCollectionPipeline()
+            pipeline = EnhancedDataCollectionPipeline()
             collection_stats = pipeline.get_collection_statistics()
             print(f"\nCollection Stats:")
             print(f"Tweets collected: {collection_stats['tweets_collected']}")
@@ -1175,7 +1174,7 @@ Examples:
     if args.command == 'data':
         if args.data_command == 'scrape':
             try:
-                config = Config()
+                config = config_manager
                 command_to_run = "python3 scripts/scrape_tweets_from_web.py"
                 _run_command(command_to_run, remote=args.remote, config=config)
                 print("\nScraping completed successfully!")

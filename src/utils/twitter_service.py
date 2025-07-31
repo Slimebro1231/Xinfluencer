@@ -9,7 +9,7 @@ import tweepy
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import Config
+from config import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 class TwitterService:
     """Twitter service that supports both OAuth 1.0a and OAuth 2.0 authentication."""
     
-    def __init__(self, config: Optional[Config] = None):
+    def __init__(self, config: Optional[Any] = None):
         """Initialize Twitter service with configuration."""
-        self.config = config or Config()
+        self.config = config or config_manager
         self.client = None
         self.api = None
         self._setup_authentication()

@@ -96,6 +96,151 @@ class VectorDB:
             }
             for point in self.data
         ]
+    
+    def rebuild_from_json_data(self, json_files: List[str] = None, embedder=None) -> int:
+        """
+        Rebuild vector database from JSON data files.
+        
+        Args:
+            json_files: List of JSON file paths to process. If None, uses default files.
+            embedder: TextEmbedder instance for creating embeddings
+            
+        Returns:
+            Number of vectors added to the database
+        """
+        import json
+        import os
+        from pathlib import Path
+        
+        if json_files is None:
+            json_files = [
+                "data/collected/kol_collection_20250728_095921.json",
+                "data/collected/high_engagement_20250728_091647.json", 
+                "data/collected/unified_collection_20250729_040626.json",
+                "data/collected/kol_collection_20250728_101224.json",
+                "data/collected/unified_collection_20250729_024917.json",
+                "data/collected/unified_collection_20250729_023833.json",
+                "data/collected/comprehensive_collection_20250728_091647.json",
+                "data/collected/unified_collection_20250729_053635.json",
+                "data/collected/unified_collection_20250729_081609.json",
+                "data/collected/comprehensive_collection_20250728_095957.json"
+            ]
+        
+        logger.info(f"Rebuilding vector database from {len(json_files)} JSON files")
+        
+        # Clear existing data
+        self.data = []
+        self.next_id = 0
+        logger.info("Cleared existing vector database")
+        
+        total_vectors = 0
+        
+        for json_file in json_files:
+            if not os.path.exists(json_file):
+                logger.warning(f"File not found: {json_file}")
+                continue
+                
+            logger.info(f"Processing {json_file}...")
+            
+            try:
+                with open(json_file, 'r') as f:
+                    data = json.load(f)
+                
+                # Extract tweets from author-keyed structure
+                all_tweets = []
+                if isinstance(data, dict):
+                    for author, author_tweets in data.items():
+                        if isinstance(author_tweets, list):
+                            all_tweets.extend(author_tweets)
+                elif isinstance(data, list):
+                    all_tweets = data
+                
+                logger.info(f"Found {len(all_tweets)} tweets in {json_file}")
+                
+                # Add tweets to vector database
+                for i, tweet in enumerate(all_tweets):
+                    try:
+                        # Extract tweet text
+                        if isinstance(tweet, dict):
+                            text = tweet.get("text", "")
+                            tweet_id = str(tweet.get("id", f"unknown_{i}"))
+                        else:
+                            text = tweet.text
+                            tweet_id = str(tweet.id)
+                        
+                        # Skip if no text or too short
+                        if not text or len(text.strip()) < 20:
+                            continue
+                        
+                        # Create embedding if embedder is available
+                        if embedder:
+                            embedding = embedder.embed_text(text)
+                        else:
+                            # Fallback: create a simple hash-based vector for demo
+                            import hashlib
+                            hash_obj = hashlib.md5(text.encode())
+                            embedding = [float(int(hash_obj.hexdigest()[i:i+2], 16)) / 255.0 for i in range(0, 32, 2)] * 24  # 768-dim vector
+                        
+                        # Add to vector database
+                        point = {
+                            "id": self.next_id,
+                            "vector": embedding,
+                            "payload": {
+                                "text": text,
+                                "tweet_id": tweet_id,
+                                "source": json_file,
+                                "metadata": {
+                                    "processed_at": str(Path(__file__).parent.parent.parent / "data" / "cache" / "vector_rebuild"),
+                                    "embedding_type": "semantic" if embedder else "hash_fallback"
+                                }
+                            }
+                        }
+                        
+                        self.data.append(point)
+                        self.next_id += 1
+                        total_vectors += 1
+                        
+                        if total_vectors % 100 == 0:
+                            logger.info(f"Added {total_vectors} vectors...")
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing tweet {i}: {e}")
+                        continue
+                        
+            except Exception as e:
+                logger.error(f"Error processing {json_file}: {e}")
+                continue
+        
+        logger.info(f"Vector database rebuilt with {total_vectors} vectors")
+        return total_vectors
+    
+    def search_similar(self, query_text: str, top_k: int = 5, threshold: float = 0.7) -> List[Dict]:
+        """
+        Search for similar texts using semantic similarity.
+        
+        Args:
+            query_text: Text to search for
+            top_k: Number of top results to return
+            threshold: Minimum similarity threshold
+            
+        Returns:
+            List of similar texts with scores
+        """
+        if not self.data:
+            return []
+        
+        # Create query embedding (fallback to hash-based for demo)
+        import hashlib
+        hash_obj = hashlib.md5(query_text.encode())
+        query_embedding = [float(int(hash_obj.hexdigest()[i:i+2], 16)) / 255.0 for i in range(0, 32, 2)] * 24
+        
+        # Search using existing search method
+        results = self.search(query_embedding, limit=top_k)
+        
+        # Filter by threshold
+        filtered_results = [r for r in results if r["score"] >= threshold]
+        
+        return filtered_results
 
 
 # Real Qdrant implementation (commented out for demo)

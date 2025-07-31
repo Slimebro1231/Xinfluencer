@@ -19,12 +19,6 @@ except ImportError:
     LORA_AVAILABLE = False
 
 try:
-    from .manual_trainer import ManualTrainer
-    MANUAL_TRAINER_AVAILABLE = True
-except ImportError:
-    MANUAL_TRAINER_AVAILABLE = False
-
-try:
     from ..vector.embed import TextEmbedder
     from ..vector.db import VectorDB
     VECTOR_AVAILABLE = True
@@ -82,12 +76,12 @@ class IdentityTrainingPipeline:
             self.embedder = None
             self.vector_db = None
             
-        # Training configuration - lowered thresholds for more training data
+        # Training configuration - adjusted for current data quality
         self.config = {
-            'min_quality_threshold': 0.2,  # Lowered to get 300+ examples
-            'min_crypto_relevance': 0.01, # Lowered to get more crypto content
+            'min_quality_threshold': 0.25,  # Lowered to work with current data
+            'min_crypto_relevance': 0.01, # Keep low to get more crypto content
             'max_training_examples': 1000,
-            'identity_weight': 1.5,
+            'identity_weight': 1.0,  # Reduced to focus more on tweet quality
             'lora_epochs': 3,
             'batch_size': 4
         }
@@ -132,28 +126,25 @@ class IdentityTrainingPipeline:
             tweet_id, text, author, engagement_score, crypto_relevance, quality_score, metadata = row
             meta = json.loads(metadata) if metadata else {}
             weight = quality_score * crypto_relevance * self.config['identity_weight']
-            
-            # Clean the tweet text - remove URLs and normalize
-            clean_text = self._clean_tweet_for_training(text)
-            
-            if clean_text and len(clean_text) > 10:  # Only use substantial tweets
-                training_examples.append({
-                    'text': clean_text,  # Use clean text directly, no instruction format
-                    'weight': weight,
-                    'author': author,
-                    'metadata': {
-                        'tweet_id': tweet_id,
-                        'engagement_score': engagement_score,
-                        'crypto_relevance': crypto_relevance,
-                        'quality_score': quality_score,
-                        'original_metadata': meta
-                    }
-                })
+            training_examples.append({
+                'query': SOJU_PERSONA_INSTRUCTION + '\n\nTweet: ' + text,
+                'response': text,
+                'approved': True,
+                'weight': weight,
+                'author': author,
+                'metadata': {
+                    'tweet_id': tweet_id,
+                    'engagement_score': engagement_score,
+                    'crypto_relevance': crypto_relevance,
+                    'quality_score': quality_score,
+                    'original_metadata': meta
+                }
+            })
         
         if not training_examples:
             logger.error("No high-quality training examples with real engagement metrics available.")
             raise RuntimeError("No valid training data: all posts missing engagement metrics.")
-        logger.info(f"Prepared {len(training_examples)} high-quality training examples with clean tweet content.")
+        logger.info(f"Prepared {len(training_examples)} high-quality training examples with Soju persona.")
         return training_examples
     
     def load_safe_collection_data(self) -> List[Dict[str, Any]]:
@@ -207,39 +198,37 @@ class IdentityTrainingPipeline:
                     crypto_relevant = any(keyword in text_lower for keyword in crypto_keywords)
                     
                     if crypto_relevant:
-                        # Clean the tweet text
-                        clean_text = self._clean_tweet_for_training(text)
+                        # Calculate basic quality score
+                        quality_score = min(len(text) / 200.0, 1.0) * 0.8  # Length factor
+                        if any(term in text_lower for term in ['defi', 'rwa', 'tokenization']):
+                            quality_score += 0.2  # Bonus for high-value terms
                         
-                        if clean_text:  # Only use if cleaning was successful
-                            # Calculate basic quality score
-                            quality_score = min(len(clean_text) / 200.0, 1.0) * 0.8  # Length factor
-                            if any(term in text_lower for term in ['defi', 'rwa', 'tokenization']):
-                                quality_score += 0.2  # Bonus for high-value terms
-                            
-                            # Get engagement metrics if available
-                            metrics = tweet.get('public_metrics', {})
-                            likes = metrics.get('like_count', 0)
-                            retweets = metrics.get('retweet_count', 0)
-                            
-                            # Weight by engagement if available, but don't require it
-                            engagement_weight = 1.0
-                            if likes > 0 or retweets > 0:
-                                engagement_weight = min((likes + retweets * 2) / 10.0, 2.0)
-                            
-                            weight = quality_score * engagement_weight
-                            
-                            training_examples.append({
-                                'text': clean_text,  # Use clean text directly
-                                'weight': weight,
-                                'author': tweet.get('author_username', 'verified_kol'),
-                                'metadata': {
-                                    'tweet_id': tweet.get('id', ''),
-                                    'source': 'safe_collection',
-                                    'crypto_relevant': True,
-                                    'quality_score': quality_score,
-                                    'engagement_metrics': metrics
-                                }
-                            })
+                        # Get engagement metrics if available
+                        metrics = tweet.get('public_metrics', {})
+                        likes = metrics.get('like_count', 0)
+                        retweets = metrics.get('retweet_count', 0)
+                        
+                        # Weight by engagement if available, but don't require it
+                        engagement_weight = 1.0
+                        if likes > 0 or retweets > 0:
+                            engagement_weight = min((likes + retweets * 2) / 10.0, 2.0)
+                        
+                        weight = quality_score * engagement_weight
+                        
+                        training_examples.append({
+                            'query': SOJU_PERSONA_INSTRUCTION + '\n\nTweet: ' + text,
+                            'response': text,
+                            'approved': True,
+                            'weight': weight,
+                            'author': tweet.get('author_username', 'verified_kol'),
+                            'metadata': {
+                                'tweet_id': tweet.get('id', ''),
+                                'source': 'safe_collection',
+                                'crypto_relevant': True,
+                                'quality_score': quality_score,
+                                'engagement_metrics': metrics
+                            }
+                        })
                 
                 logger.info(f"Loaded {len([ex for ex in training_examples if ex['metadata']['source'] == 'safe_collection'])} crypto tweets from {json_file.name}")
                 
@@ -253,6 +242,11 @@ class IdentityTrainingPipeline:
         
         logger.info(f"Prepared {len(final_examples)} high-quality training examples from safe collection data")
         return final_examples
+    
+    def get_enhanced_training_data_with_ab_learning(self) -> List[Dict[str, Any]]:
+        """Get training data using original approach without A/B filtering."""
+        # Use the original high-quality training data approach
+        return self.get_high_quality_training_data()
     
     def train_identity_model(self, output_dir: str = "lora_checkpoints/identity", continue_from: str = None) -> Optional[str]:
         """Train the identity model using LoRA with existing infrastructure."""
@@ -288,11 +282,15 @@ class IdentityTrainingPipeline:
         
         # Get training data from unified storage, fallback to safe collection
         try:
-            training_examples = self.get_high_quality_training_data()
+            training_examples = self.get_enhanced_training_data_with_ab_learning()
         except RuntimeError as e:
-            logger.warning(f"Database training data insufficient: {e}")
-            logger.info("Falling back to safe_collection data from verified KOLs")
-            training_examples = self.load_safe_collection_data()
+            logger.warning(f"Enhanced training data insufficient: {e}")
+            try:
+                training_examples = self.get_high_quality_training_data()
+            except RuntimeError as e2:
+                logger.warning(f"Database training data insufficient: {e2}")
+                logger.info("Falling back to safe_collection data from verified KOLs")
+                training_examples = self.load_safe_collection_data()
         
         if not training_examples:
             logger.error("No training examples available from any source")
@@ -300,14 +298,6 @@ class IdentityTrainingPipeline:
         
         # Prepare for LoRA training using existing infrastructure
         lora_training_data = self.lora_trainer.prepare_training_data(training_examples)
-        
-        # Save prepared training data for inspection
-        import json
-        import os
-        os.makedirs(output_dir, exist_ok=True)  # Ensure directory exists
-        with open(f"{output_dir}/training_data.json", 'w') as f:
-            json.dump(lora_training_data, f, indent=2)  # Save all examples
-        logger.info(f"Prepared training data saved to {output_dir}/training_data.json ({len(lora_training_data)} examples)")
         
         # Initialize monitoring for training impact
         monitor = TrainingMonitor()
@@ -342,86 +332,6 @@ class IdentityTrainingPipeline:
         
         return adapter_path
     
-    def train_identity_model_manual(self, output_dir: str = "lora_checkpoints/manual_identity", continue_from: str = None) -> Optional[str]:
-        """Train the identity model using manual trainer."""
-        if not MANUAL_TRAINER_AVAILABLE:
-            logger.error("Manual trainer not available - missing dependencies")
-            return None
-            
-        logger.info("Starting identity training with manual trainer")
-        
-        # Get training data from unified storage, fallback to safe collection
-        try:
-            training_examples = self.get_high_quality_training_data()
-        except RuntimeError as e:
-            logger.warning(f"Database training data insufficient: {e}")
-            logger.info("Falling back to safe_collection data from verified KOLs")
-            training_examples = self.load_safe_collection_data()
-        
-        if not training_examples:
-            logger.error("No training examples available from any source")
-            return None
-        
-        # Initialize manual trainer
-        manual_trainer = ManualTrainer()
-        
-        # Training data is already in the correct format
-        prepared_data = training_examples
-        
-        logger.info(f"Using {len(prepared_data)} training examples for manual training")
-        
-        # Save prepared training data for inspection
-        import json
-        import os
-        os.makedirs(output_dir, exist_ok=True)
-        with open(f"{output_dir}/training_data.json", 'w') as f:
-            json.dump(training_examples[:20], f, indent=2)  # Save first 20 examples
-        
-        # Initialize monitoring for training impact
-        monitor = TrainingMonitor()
-        logger.info("Starting real-time training monitoring...")
-        monitor.start_monitoring(interval=15)
-        
-        try:
-            # Train using manual trainer
-            adapter_path = manual_trainer.train(
-                training_data=prepared_data,
-                output_dir=output_dir,
-                epochs=3,
-                batch_size=2,
-                learning_rate=1e-4,
-                save_steps=50
-            )
-        except KeyboardInterrupt:
-            logger.info("Training interrupted by user")
-            adapter_path = None
-        except Exception as e:
-            logger.error(f"Training failed: {e}")
-            adapter_path = None
-        finally:
-            # Stop monitoring and show final impact summary
-            try:
-                monitor.stop_monitoring()
-                impact_summary = monitor.get_training_impact_summary()
-                if impact_summary:
-                    logger.info("Training Impact Summary:")
-                    for key, value in impact_summary.items():
-                        logger.info(f"  {key}: {value}")
-            except Exception as e:
-                logger.error(f"Error stopping monitoring: {e}")
-        
-        if adapter_path:
-            logger.info(f"Manual identity training completed. Adapter saved to: {adapter_path}")
-            
-            # Update vector database with identity examples
-            if VECTOR_AVAILABLE:
-                self._update_vector_db_with_identity(training_examples)
-            
-            # Save training summary
-            self._save_training_summary(training_examples, adapter_path)
-        
-        return adapter_path
-    
     def _update_vector_db_with_identity(self, training_examples: List[Dict]):
         """Update vector database with identity examples using existing infrastructure."""
         if not VECTOR_AVAILABLE:
@@ -435,7 +345,7 @@ class IdentityTrainingPipeline:
             chunks = []
             for i, example in enumerate(training_examples):
                 chunk = {
-                    'text': example['text'], # Use the cleaned text directly
+                    'text': example['response'],
                     'metadata': {
                         'type': 'identity_training',
                         'author': example['author'],
@@ -477,7 +387,7 @@ class IdentityTrainingPipeline:
                 {
                     'author': ex['author'], 
                     'weight': ex['weight'],
-                    'text': ex['text'][:100] + '...' if len(ex['text']) > 100 else ex['text'] # Use 'text' from training_examples
+                    'text': ex['response'][:100] + '...' if len(ex['response']) > 100 else ex['response']
                 }
                 for ex in sorted(training_examples, key=lambda x: x['weight'], reverse=True)[:5]
             ]
@@ -517,29 +427,3 @@ class IdentityTrainingPipeline:
             'lora_available': LORA_AVAILABLE,
             'vector_available': VECTOR_AVAILABLE
         } 
-
-    def _clean_tweet_for_training(self, tweet_text: str) -> str:
-        """Clean tweet text for training - remove URLs, normalize, and ensure quality."""
-        import re
-        
-        # Remove URLs
-        tweet = re.sub(r'https?://\S+', '', tweet_text)
-        
-        # Remove mentions but keep the @ symbol for context
-        tweet = re.sub(r'@\w+', '@user', tweet)
-        
-        # Remove hashtags but keep the # symbol for context
-        tweet = re.sub(r'#\w+', '#topic', tweet)
-        
-        # Remove extra whitespace and newlines
-        tweet = ' '.join(tweet.split())
-        
-        # Remove empty tweets
-        if not tweet.strip():
-            return ""
-        
-        # Ensure reasonable length
-        if len(tweet) < 10 or len(tweet) > 280:
-            return ""
-        
-        return tweet.strip() 

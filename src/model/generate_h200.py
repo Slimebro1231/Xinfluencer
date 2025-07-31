@@ -8,6 +8,16 @@ from huggingface_hub import login
 import logging
 import gc
 
+# FlashAttention2 fallback configuration
+def configure_model_without_flash_attention(model_config):
+    """Configure model without FlashAttention2."""
+    if hasattr(model_config, 'use_flash_attention_2'):
+        model_config.use_flash_attention_2 = False
+    if hasattr(model_config, 'attn_implementation'):
+        model_config.attn_implementation = "sdpa"
+    return model_config
+
+
 logger = logging.getLogger(__name__)
 
 class H200TextGenerator:
@@ -41,6 +51,8 @@ class H200TextGenerator:
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+            # Set pad_token_id explicitly to avoid attention mask issues
+            self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
         
         # Configure quantization if requested (optional with 150GB memory)
         quantization_config = None
@@ -124,8 +136,13 @@ class H200TextGenerator:
             )
             
             with torch.no_grad():
+                # Ensure attention_mask is explicitly passed
+                if 'attention_mask' not in inputs:
+                    inputs['attention_mask'] = torch.ones_like(inputs['input_ids'])
+                
                 outputs = self.model.generate(
-                    **inputs,
+                    input_ids=inputs['input_ids'],
+                    attention_mask=inputs['attention_mask'],
                     generation_config=generation_config,
                     use_cache=True
                 )

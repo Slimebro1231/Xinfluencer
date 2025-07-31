@@ -1,15 +1,15 @@
-"""Hybrid search combining dense and sparse retrieval."""
+"""Lightweight hybrid search combining dense and sparse retrieval."""
 
 from typing import List, Dict, Tuple, Optional
 import numpy as np
 from rank_bm25 import BM25Okapi
-from sentence_transformers import CrossEncoder
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 class HybridSearch:
-    """Hybrid search combining BM25 sparse retrieval with dense embeddings."""
+    """Lightweight hybrid search combining BM25 sparse retrieval with dense embeddings."""
     
     def __init__(self, dense_search, documents: List[str], alpha: float = 0.5):
         """Initialize hybrid search with dense search and documents."""
@@ -18,28 +18,26 @@ class HybridSearch:
         self.alpha = alpha  # Weight for dense vs sparse (0.5 = equal weight)
         
         # Initialize BM25
-        tokenized_docs = [doc.lower().split() for doc in documents]
+        tokenized_docs = [self._tokenize(doc) for doc in documents]
         self.bm25 = BM25Okapi(tokenized_docs)
         
-        # Initialize cross-encoder for reranking
-        try:
-            self.cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-            logger.info("Cross-encoder loaded successfully")
-        except Exception as e:
-            logger.warning(f"Cross-encoder failed to load: {e}")
-            self.cross_encoder = None
-        
-        logger.info(f"Hybrid search initialized with {len(documents)} documents")
+        logger.info(f"Lightweight hybrid search initialized with {len(documents)} documents")
+    
+    def _tokenize(self, text: str) -> List[str]:
+        """Simple tokenization for BM25."""
+        # Remove special characters and split
+        text = re.sub(r'[^\w\s]', ' ', text.lower())
+        return text.split()
     
     def search(self, query: str, top_k: int = 10, rerank: bool = True) -> List[Dict]:
-        """Perform hybrid search with optional reranking."""
+        """Perform hybrid search with lightweight reranking."""
         try:
             # Dense search
             dense_results = self.dense_search.search(query, top_k=top_k * 2)
             dense_scores = {result['id']: result['score'] for result in dense_results}
             
             # Sparse search (BM25)
-            tokenized_query = query.lower().split()
+            tokenized_query = self._tokenize(query)
             bm25_scores = self.bm25.get_scores(tokenized_query)
             
             # Normalize scores
@@ -71,9 +69,9 @@ class HybridSearch:
                         'sparse_score': bm25_scores[doc_index] if doc_index < len(bm25_scores) else 0
                     })
             
-            # Rerank with cross-encoder if available
-            if rerank and self.cross_encoder and len(results) > 1:
-                results = self._rerank_with_cross_encoder(query, results)
+            # Lightweight reranking based on keyword overlap
+            if rerank and len(results) > 1:
+                results = self._lightweight_rerank(query, results)
             
             return results[:top_k]
             
@@ -102,20 +100,26 @@ class HybridSearch:
             return [1.0] * len(scores)
         return [(score - min_score) / (max_score - min_score) for score in scores]
     
-    def _rerank_with_cross_encoder(self, query: str, results: List[Dict]) -> List[Dict]:
-        """Rerank results using cross-encoder."""
+    def _lightweight_rerank(self, query: str, results: List[Dict]) -> List[Dict]:
+        """Lightweight reranking based on keyword overlap and semantic similarity."""
         try:
-            # Prepare pairs for cross-encoder
-            pairs = [[query, result['text']] for result in results]
+            query_tokens = set(self._tokenize(query))
             
-            # Get cross-encoder scores
-            cross_scores = self.cross_encoder.predict(pairs)
-            
-            # Update results with cross-encoder scores
-            for i, result in enumerate(results):
-                result['cross_score'] = cross_scores[i]
-                # Combine with original score
-                result['final_score'] = 0.7 * result['score'] + 0.3 * cross_scores[i]
+            for result in results:
+                doc_tokens = set(self._tokenize(result['text']))
+                
+                # Calculate keyword overlap
+                overlap = len(query_tokens.intersection(doc_tokens))
+                overlap_score = overlap / max(len(query_tokens), 1)
+                
+                # Calculate semantic similarity boost based on crypto keywords
+                crypto_keywords = {'bitcoin', 'btc', 'crypto', 'gold', 'etf', 'market', 'price', 'bull', 'bear'}
+                crypto_overlap = len(crypto_keywords.intersection(doc_tokens))
+                crypto_boost = min(crypto_overlap * 0.1, 0.3)  # Max 30% boost
+                
+                # Combine scores
+                final_score = result['score'] * (1 + overlap_score + crypto_boost)
+                result['final_score'] = final_score
             
             # Sort by final score
             results.sort(key=lambda x: x['final_score'], reverse=True)
@@ -123,5 +127,5 @@ class HybridSearch:
             return results
             
         except Exception as e:
-            logger.warning(f"Cross-encoder reranking failed: {e}")
+            logger.warning(f"Lightweight reranking failed: {e}")
             return results 

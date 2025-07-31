@@ -1,19 +1,17 @@
-"""Evaluation module for measuring incremental AI improvements."""
+"""
+Evaluation System
+Centralized evaluation and metrics for the Xinfluencer AI system.
+"""
 
-from .engine import (
-    EvaluationEngine,
-    EvaluationResult,
-    ABTestEvaluator,
-    MultiDimensionalEvaluator,
-    TrainingSignalEnhancer,
-    StatisticalAnalyzer
-)
+from .engine import EvaluationEngine
+from .tweet_quality import TweetQualityEvaluator
+from .ab_testing import ABTestingEngine
+from .engagement_evaluator import EngagementEvaluator, TweetComparison
 
 __all__ = [
     'EvaluationEngine',
-    'EvaluationResult',
-    'ABTestEvaluator',
-    'MultiDimensionalEvaluator',
-    'TrainingSignalEnhancer',
-    'StatisticalAnalyzer'
+    'TweetQualityEvaluator', 
+    'ABTestingEngine',
+    'EngagementEvaluator',
+    'TweetComparison'
 ] 

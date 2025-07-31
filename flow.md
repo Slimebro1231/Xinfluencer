@@ -6,84 +6,80 @@ A sophisticated self-learning AI agent that analyzes crypto influencer content u
 
 ```mermaid
 flowchart TD
-    %% ========== INGESTION ==========
-    KOL["Seed KOL List<br/>(~100 experts)"] --> TWAPI("Twitter API<br/>(Tweepy)")
-    TWAPI --> RAW["Raw Tweets<br/>(JSON)"]
-
-    %% ========== DATA QUALITY & HUMAN ALIGNMENT ==========
-    RAW --> QC["Automated Filters<br/>(lang ✔, toxicity ✔,<br/>bot ✔, perplexity ✔)"]
-    QC --> HREV{"Human Align<br/>Review (bootstrap)"}
-    HREV -- "approve" --> CHUNK["Cleaned<br/>256‑token chunks"]
-    HREV -- "reject" --> DISCARD["Discard"]
-
-    %% ========== VECTOR & RAG ==========
-    CHUNK --> EMB["Embeddings<br/>(bge‑large‑en)"]
-    EMB --> VDB["Vector DB<br/>(Qdrant + cuVS)"]
-
-    subgraph RAG["Retrieval‑Augmented Generation"]
-        QUERY["Task / Prompt"] --> QEMB["Embed Query"]
-        QEMB --> VDB
-        VDB --> RERANK["Cross‑Encoder<br/>(ColBERT‑v2)"]
-        RERANK --> CONTEXT["Top‑k Context"]
-    end
-
-    %% ========== GENERATION & SELF‑CRITIQUE ==========
-    CONTEXT --> LLM["LLM (Llama 3.1 8B)<br/>+ Daily LoRA"]
-    LLM --> SELF["Self‑RAG<br/>(re‑retrieve + critique)"]
-    SELF --> DRAFT["Draft Tweet"]
-
-    %% ========== REVIEW CHANNELS ==========
-    DRAFT --> POREV{"Human Review?<br/>(early phase)"}
-    DRAFT --> AIREV["AI Peer Review<br/>(raw GPT‑4o)"]
-
-    POREV -- "approve / minor" --> POST["Post to Twitter"]
-    POREV -- "edit" --> EDIT["Manual Edit"]
+    KOL[Seed KOL List] --> TWAPI[X API v2]
+    TWAPI --> RAW[Raw Tweets]
+    
+    RAW --> SAFEGUARD[API Usage Safeguard]
+    SAFEGUARD --> QC[Automated Filters]
+    QC --> HREV{Human Review}
+    HREV -->|approve| CHUNK[Cleaned Chunks]
+    HREV -->|reject| DISCARD[Discard]
+    
+    CHUNK --> TRAIN[Training Data Storage]
+    TRAIN --> EMB[Embeddings]
+    EMB --> VDB[Vector DB]
+    
+    QUERY[Task / Prompt] --> QEMB[Embed Query]
+    QEMB --> VDB
+    VDB --> RERANK[Cross-Encoder]
+    RERANK --> CONTEXT[Top-k Context]
+    
+    CONTEXT --> LLM[LLM + LoRA]
+    LLM --> SELF[Self-RAG]
+    SELF --> DRAFT[Draft Tweet]
+    
+    DRAFT --> POREV{Human Review}
+    DRAFT --> AIREV[AI Peer Review]
+    
+    POREV -->|approve| POST[Post to Twitter]
+    POREV -->|edit| EDIT[Manual Edit]
     EDIT --> POST
-    EDIT --> REWARD
+    EDIT --> REWARD[Reward Model]
     AIREV --> POST
-
-    %% ========== FEEDBACK / REWARD ==========
-    POST --> METRICS["Twitter Metrics<br/>(views • likes • reposts)"]
-    POREV --> REWARD["Reward Model"]
+    
+    POST --> METRICS[Twitter Metrics]
+    POREV --> REWARD
     AIREV --> REWARD
     METRICS --> REWARD
-
-    REWARD --> PPO["Policy Update<br/>(PPO via TRL)"]
+    
+    REWARD --> PPO[Policy Update]
     PPO --> TWAPI
-
-    %% ========== CONTINUAL TUNING ==========
-    CHUNK --> LORAFT["LoRA Fine‑Tune<br/>(daily)"]
+    
+    TRAIN --> LORAFT[LoRA Fine-Tune]
     LORAFT --> LLM
-
-    %% ========== MONITORING ==========
-    VDB -.-> DASH["Dash<br/>(Prom • RAGAS)"]
-    LLM -. faithfulness .-> DASH
-    POST -. brand‑drift .-> DASH
+    
+    VDB -.-> DASH[Dashboard]
+    LLM -.-> DASH
+    POST -.-> DASH
+    SAFEGUARD -.-> DASH
 ```
 
-## Core Innovation: Data Flywheel Architecture
+## Core Innovation: Enhanced Data Flywheel Architecture
 
-At launch the agent is given a seed list of ~20 trusted KOL accounts. Humans watch its first outputs (the bootstrap gate) while automated filters kill spam, bots and toxic tweets. Clean chunks go into a GPU-backed vector DB. At inference the model uses Self-RAG—retrieve → draft → re-retrieve & critique—to write tweets with a certain personality. Every draft is scored three ways: (1) humans, (2) an "AI peer" critic running raw GPT-4o, and (3) real Twitter engagement. All three signals feed a reward model; once a week a PPO policy update (via the Hugging-Face TRL library) shifts what the bot reads and how it speaks. Meanwhile a daily LoRA micro-tune nudges the LLM itself. A Prometheus + Grafana dashboard plus the RAGAS evaluation library surface retrieval precision, faithfulness and latency so ops can see drift in real time.
+At launch the agent is given a seed list of ~20 trusted KOL accounts. The **Enhanced Data Collection Pipeline** with **API Usage Safeguard** ensures safe, rate-limited collection while humans watch its first outputs (the bootstrap gate). Automated filters kill spam, bots and toxic tweets. Clean chunks are stored in **Training Data Storage** with comprehensive metadata before being embedded into a GPU-backed vector DB. At inference the model uses Self-RAG—retrieve → draft → re-retrieve & critique—to write tweets with a certain personality. Every draft is scored three ways: (1) humans, (2) an "AI peer" critic running raw GPT-4o, and (3) real Twitter engagement. All three signals feed a reward model; once a week a PPO policy update (via the Hugging-Face TRL library) shifts what the bot reads and how it speaks. Meanwhile a daily LoRA micro-tune nudges the LLM itself. A Prometheus + Grafana dashboard plus the RAGAS evaluation library surface retrieval precision, faithfulness and latency so ops can see drift in real time.
 
-## Data Acquisition Strategy
+## Enhanced Data Acquisition Strategy
 
-To power our AI, we employ a two-stage data acquisition strategy. For initial model bootstrapping and testing, we use a script that performs live web searches to gather real content. Once the system is live and the Twitter API plan is active, we will switch to direct API integration for more detailed, real-time data.
+Our system employs a sophisticated **Enhanced Data Collection Pipeline** that combines comprehensive X API v2 integration with safety mechanisms and training optimization.
 
-### Stage 1: Initial Bootstrapping (Live Web Scraping)
-To test the full pipeline without API access, we use a script (`scripts/scrape_tweets_from_web.py`) that collects real, publicly available tweet data.
+### Stage 1: Safe Collection with API Safeguard
+The **EnhancedDataCollectionPipeline** implements intelligent rate limiting and usage tracking:
 
-- **Method**: For each KOL, the script performs a live web search for recent tweets using the `duckduckgo-search` library.
-- **Data Format**: It parses the search results to extract tweet text and any visible engagement metrics (likes, retweets). It then formats this information into a JSON structure that mimics the official Twitter API V2 response.
-- **Purpose**: This provides authentic, topical text data to validate our data quality, chunking, RAG, and fine-tuning (LoRA/PPO) pipelines before activating the paid API plan.
+- **API Usage Safeguard**: Monitors post limits (1000/hour, 10000/day) and API call limits to prevent quota exhaustion
+- **Batch User ID Resolution**: Optimizes API usage by caching user IDs and batch processing lookups
+- **Comprehensive Collection**: Combines KOL data, trending tweets, and high-engagement content in a single pipeline
+- **Training Integration**: Automatically stores high-quality content in SQLite with metadata for fine-tuning
 
-### Stage 2: Live Data Integration (Twitter API v2)
-Once operational, our system will leverage the Twitter API v2 for robust, targeted data collection.
+### Stage 2: X API v2 Integration with Enhanced Client
+Our **XAPIClient** provides robust, targeted data collection with intelligent caching:
 
 **Endpoint:** `GET /2/tweets/search/recent`
 
-**Authentication:**
--   **Tier 1 (Default):** App-only authentication for standard access.
--   **Tier 2 (Enhanced):** User context authentication (OAuth 2.0 with PKCE) will be implemented to access `non_public_metrics` like `impression_count`. The system will gracefully fall back to Tier 1 metrics if user-context auth is unavailable.
+**Enhanced Features:**
+- **Intelligent Caching**: User data and tweet metadata cached to minimize API calls
+- **Batch Processing**: User ID resolution and tweet collection optimized for efficiency
+- **Error Recovery**: Automatic retry logic with exponential backoff
+- **Usage Tracking**: Detailed logging of API calls and rate limit status
 
 **Key Parameters & Fields:**
 
@@ -95,8 +91,12 @@ Once operational, our system will leverage the Twitter API v2 for robust, target
 | `user.fields` | **Value:** `public_metrics,verified`<br/>**Purpose:** Gathers user-level data:<br/>- **`verified`**: Authenticity signal.<br/>- **`public_metrics`**: `followers_count` to gauge KOL influence. |
 | `expansions` | **Value:** `author_id`<br/>**Purpose:** Ensures the full user object is returned alongside the tweet, allowing us to access the requested `user.fields`. |
 
-**Post-Fetch Filtering:**
-After retrieval, a filtering step will be applied to the `context_annotations` of each tweet to ensure only content relevant to the **cryptocurrency** and **Real World Asset (RWA)** domains is passed to the next stage of the pipeline. This ensures high topical relevance.
+**Post-Fetch Processing:**
+After retrieval, the **TrainingDataStorage** system applies quality filters and stores content with comprehensive metadata including:
+- Collection session tracking
+- Quality scores and crypto relevance
+- Engagement metrics and author information
+- Timestamp and processing metadata
 
 This configuration allows us to build a high-signal dataset of original content from trusted sources, which is essential for the quality of our downstream AI generation tasks.
 
@@ -116,15 +116,14 @@ By tracking these metrics, we can create a dynamic and data-driven process for m
 
 ## Technical Architecture
 
-### 1. Data-Quality Gate (Loop 1)
+### 1. Enhanced Data Collection (Loop 1)
 
-| Check | Method | Threshold | Action |
-|-------|--------|-----------|--------|
-| Language | `fastText` lang‑ID | non‑English? | filter |
-| Toxicity | Google Perspective | > 0.80 | discard |
-| Bot score | Botometer‑Lite | top 10 % | discard |
-| Perplexity band | GPT‑2 PPL | keep 10‑90 % | keep |
-| Engagement | likes + RT above median | ✓ | priority |
+| Component | Method | Features |
+|-------|--------|-----------|
+| API Safeguard | Rate limiting + usage tracking | Prevents quota exhaustion, tracks efficiency |
+| Batch Processing | User ID caching + batch lookups | Optimizes API usage, reduces calls |
+| Training Storage | SQLite + metadata | Comprehensive data tracking for fine-tuning |
+| Quality Gates | Multi-stage filtering | Language, toxicity, bot detection, perplexity |
 
 Only messages passing **all** checks are chunked (256 tokens) and embedded.
 
@@ -162,7 +161,7 @@ Daily micro‑adapters are merged back every 4–6 weeks to prevent adapter spra
 
 | Time | Job | Loop |
 |------|-----|------|
-| 01:00 | Hydrate 24 h sources → run quality gate | 1 |
+| 01:00 | Safe collection → run quality gate | 1 |
 | 02:00 | Embed & upsert vectors; rebuild ANN & re‑rank index | 2 |
 | 03:00 | LoRA fine‑tune on new high‑quality chunks | 3 |
 | 09 – 23 h | Agent reads, answers, posts (Self‑RAG active) | 2‑3 |
@@ -177,6 +176,7 @@ Daily micro‑adapters are merged back every 4–6 weeks to prevent adapter spra
 | Hallucination rate | ↑ WoW | increase Self‑RAG passes |
 | p95 latency | > 2 s | scale index / lower k |
 | Adapter count | > 8 | merge weights |
+| API usage efficiency | < 0.8 | optimize collection strategy |
 
 ### 7. Knowledge‑Graph Hybrid
 
@@ -198,6 +198,7 @@ Retriever first queries KG; if miss, fall back to vector DB, ensuring critical f
 | **LoRA (Low‑Rank Adaptation)** | Parameter‑efficient fine‑tuning that injects small rank‑r weight matrices; only ≈2 % of parameters are updated daily. |
 | **PPO (Proximal Policy Optimisation)** | RL algorithm that maximises a clipped surrogate objective to keep policy updates stable. Implemented via the **TRL** (Transformer Reinforcement Learning) library from Hugging Face. |
 | **TRL** | Open‑source Python library offering PPO, DPO and other RL algorithms tailored for transformer models. |
+| **Enhanced Data Collection** | Comprehensive pipeline combining API safety, batch processing, and training integration for optimal data acquisition. |
 
 ---
 
@@ -205,4 +206,4 @@ Retriever first queries KG; if miss, fall back to vector DB, ensuring critical f
 
 Our ambition is to create the most sophisticated AI agent for crypto content generation, one that continuously learns and improves from real-world engagement data. By combining advanced retrieval-augmented generation with multi-signal evaluation and continuous learning, we aim to set new standards for AI-generated content quality and authenticity.
 
-The data flywheel approach ensures that every piece of content contributes to improving future generations, creating a virtuous cycle of quality improvement that scales with usage. This positions Xinfluencer as not just a content generation tool, but as a continuously evolving AI system that becomes more valuable over time.
+The enhanced data flywheel approach ensures that every piece of content contributes to improving future generations, creating a virtuous cycle of quality improvement that scales with usage. This positions Xinfluencer as not just a content generation tool, but as a continuously evolving AI system that becomes more valuable over time.

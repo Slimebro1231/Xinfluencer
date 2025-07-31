@@ -1,0 +1,150 @@
+{
+  "_comment": "Centralized configuration for data collection, keywords, and parameters",
+  "_source": "Xinfluencer Data Collection System",
+  "_version": "1.0.0",
+  
+  "crypto_keywords": {
+    "_comment": "Primary crypto and DeFi keywords for content filtering and search",
+    "_source": "Crypto market analysis and DeFi ecosystem",
+    "primary": [
+      "bitcoin", "btc", "ethereum", "eth", "defi", "dapp", "protocol", 
+      "token", "crypto", "blockchain", "smart contract", "yield", 
+      "liquidity", "staking", "lending", "dao", "governance"
+    ],
+    "secondary": [
+      "altcoin", "memecoin", "nft", "metaverse", "web3", "layer2", 
+      "rollup", "bridge", "oracle", "amm", "dex", "cex", "wallet"
+    ],
+    "rwa_specific": [
+      "rwa", "real world asset", "tokenization", "gold", "silver", 
+      "real estate", "commodity", "traditional finance", "tradfi"
+    ],
+    "narratives": [
+      "gold", "btc", "defi/rwa", "ethereum", "layer2", "ai/crypto"
+    ]
+  },
+  
+  "crypto_kols": {
+    "_comment": "Key Opinion Leaders in crypto space - verified and high-quality accounts",
+    "_source": "Updated from current system analysis",
+    "gold": [
+      "PeterSchiff", "KingKong9888", "zerohedge", "goldseek", "theRealKiyosaki"
+    ],
+    "btc": [
+      "saylor", "CarlBMenger", "Adrian_R_Morris", "theBTCMiningGuy", "TimKotzman"
+    ],
+    "other": [
+      "aixbt_agent", "pakpakchicken"
+    ],
+    "primary": [
+      "PeterSchiff", "KingKong9888", "zerohedge", "goldseek", "theRealKiyosaki",
+      "saylor", "CarlBMenger", "Adrian_R_Morris", "theBTCMiningGuy", "TimKotzman",
+      "aixbt_agent", "pakpakchicken"
+    ]
+  },
+  
+  "collection_limits": {
+    "_comment": "API usage limits and safety parameters",
+    "_source": "Twitter API v2 rate limits and best practices",
+    "total_posts_remaining": 10000,
+    "posts_per_retrieval": 500,
+    "posts_per_hour": 1000,
+    "posts_per_day": 10000,
+    "api_calls_per_15min": 300,
+    "tweets_per_kol": 20,
+    "max_trending_tweets": 80,
+    "max_high_engagement_tweets": 60,
+    "min_engagement_threshold": 20,
+    "max_results_per_request": 100
+  },
+  
+  "quality_filters": {
+    "_comment": "Content quality filtering parameters",
+    "_source": "Content analysis and engagement metrics",
+    "min_quality_score": 0.3,
+    "min_engagement": 10,
+    "min_followers": 1000,
+    "max_tweet_length": 280,
+    "min_tweet_length": 10,
+    "exclude_replies": true,
+    "exclude_retweets": true,
+    "exclude_quotes": false,
+    "language_filter": ["en"],
+    "toxicity_threshold": 0.6,
+    "bot_score_threshold": 0.7
+  },
+  
+  "search_queries": {
+    "_comment": "Optimized search queries for different content types",
+    "_source": "Twitter API v2 search optimization",
+    "trending_crypto": [
+      "crypto OR bitcoin OR ethereum OR defi -is:retweet -is:reply lang:en",
+      "blockchain OR token OR protocol -is:retweet -is:reply lang:en",
+      "rwa OR \"real world asset\" -is:retweet -is:reply lang:en"
+    ],
+    "high_engagement": [
+      "crypto min_retweets:10 -is:retweet -is:reply lang:en",
+      "bitcoin min_likes:50 -is:retweet -is:reply lang:en",
+      "defi min_retweets:5 -is:retweet -is:reply lang:en"
+    ],
+    "kol_specific": [
+      "from:{username} -is:retweet -is:reply lang:en"
+    ]
+  },
+  
+  "evaluation_weights": {
+    "_comment": "Weights for different evaluation metrics",
+    "_source": "Engagement analysis and content quality research",
+    "engagement": {
+      "likes": 1.0,
+      "retweets": 2.0,
+      "replies": 1.5,
+      "quotes": 1.8,
+      "impressions": 0.1
+    },
+    "relevance": {
+      "crypto_keyword_match": 0.4,
+      "narrative_alignment": 0.3,
+      "sentiment_optimism": 0.2,
+      "author_credibility": 0.1
+    },
+    "quality": {
+      "engagement_score": 0.6,
+      "relevance_score": 0.4
+    }
+  },
+  
+  "training_selection": {
+    "_comment": "Parameters for selecting training data",
+    "_source": "Machine learning best practices and content analysis",
+    "min_quality_threshold": 0.5,
+    "max_training_examples": 10000,
+    "diversity_ratio": 0.3,
+    "recency_weight": 0.2,
+    "engagement_weight": 0.4,
+    "relevance_weight": 0.4
+  },
+  
+  "advanced_components": {
+    "_comment": "Configuration for advanced AI components",
+    "_source": "Advanced Self-RAG and Hybrid Search research",
+    "selfrag": {
+      "max_iterations": 5,
+      "reflection_threshold": 0.7,
+      "contradiction_penalty": 0.3,
+      "evidence_weighting": {
+        "recent_tweets": 1.2,
+        "verified_users": 1.3,
+        "high_engagement": 1.1,
+        "official_sources": 1.4,
+        "contradictory": 0.3
+      }
+    },
+    "hybrid_search": {
+      "alpha": 0.5,
+      "top_k": 10,
+      "rerank": true,
+      "cross_encoder_model": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    }
+  }
+} 

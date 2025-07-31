@@ -12,6 +12,10 @@ from pathlib import Path
 import threading
 from collections import defaultdict
 import sqlite3
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +161,9 @@ class XAPIClient:
         # Initialize local data cache
         self.cache_db = self._init_cache_db()
         
+        # Load existing user cache
+        self._load_user_cache()
+        
         logger.info("X API Client initialized")
     
     def _setup_clients(self):
@@ -172,7 +179,7 @@ class XAPIClient:
                     consumer_secret=self.consumer_secret,
                     access_token=self.access_token,
                     access_token_secret=self.access_token_secret,
-                    wait_on_rate_limit=True
+                    wait_on_rate_limit=False  # Patch: do not sleep on rate limit, raise error
                 )
                 logger.info("Initialized v2 client with full OAuth")
                 
@@ -180,7 +187,7 @@ class XAPIClient:
                 # Bearer token only (app-only auth)
                 self.client = tweepy.Client(
                     bearer_token=self.bearer_token,
-                    wait_on_rate_limit=True
+                    wait_on_rate_limit=False  # Patch: do not sleep on rate limit, raise error
                 )
                 logger.info("Initialized v2 client with bearer token")
             
@@ -246,9 +253,6 @@ class XAPIClient:
         """)
         
         conn.commit()
-        
-        # Load existing user cache
-        self._load_user_cache()
         
         return conn
     
@@ -498,82 +502,76 @@ class XAPIClient:
             return []
     
     def get_user_tweets(self, username: str, max_results: int = 10,
-                       exclude_replies: bool = True,
-                       exclude_retweets: bool = True) -> List[TweetData]:
-        """Get recent tweets from a specific user."""
+                       exclude_replies: bool = False,
+                       exclude_retweets: bool = False) -> List[TweetData]:
+        """Get recent tweets from a specific user using robust X API v2 with pagination and diagnostics."""
         if not self.client:
             logger.error("X API client not initialized")
             return []
-        
         endpoint = "user_tweets"
-        
         try:
-            # Get user ID from cache (avoids redundant API calls)
             user_id = self._get_user_id(username)
+            logger.info(f"Resolved @{username} to user_id: {user_id}")
             if not user_id:
                 logger.warning(f"User not found: {username}")
                 return []
-            
-            # Check rate limits
-            if not self.rate_limiter.can_make_request(endpoint):
-                wait_time = self.rate_limiter.wait_for_reset(endpoint)
-                logger.warning(f"Rate limit reached for {endpoint}. Waiting {wait_time:.1f}s")
-                time.sleep(wait_time + 1)
-            
-            self.rate_limiter.record_request(endpoint)
-            
-            # Build exclusions list
             exclusions = []
             if exclude_replies:
                 exclusions.append('replies')
             if exclude_retweets:
                 exclusions.append('retweets')
-            
-            response = self.client.get_users_tweets(
-                id=user_id,
-                max_results=min(max_results, 100),
-                tweet_fields=[
-                    'id', 'text', 'created_at', 'author_id', 'public_metrics',
-                    'context_annotations', 'referenced_tweets', 'lang'
-                ],
-                exclude=exclusions if exclusions else None
-            )
-            
-            if not response or not response.data:
-                logger.info(f"No tweets found for user: {username}")
-                return []
-            
             tweets = []
-            for tweet in response.data:
-                public_metrics = tweet.public_metrics if hasattr(tweet, 'public_metrics') else {}
-                
-                context_annotations = []
-                if hasattr(tweet, 'context_annotations') and tweet.context_annotations:
-                    context_annotations = [
-                        {
-                            'domain': ann.domain.name if hasattr(ann, 'domain') and ann.domain else None,
-                            'entity': ann.entity.name if hasattr(ann, 'entity') and ann.entity else None
-                        }
-                        for ann in tweet.context_annotations
-                    ]
-                
-                tweet_data = TweetData(
-                    id=tweet.id,
-                    text=tweet.text,
-                    author_id=tweet.author_id,
-                    author_username=username,
-                    created_at=tweet.created_at,
-                    public_metrics=public_metrics,
-                    context_annotations=context_annotations,
-                    source_api="twitter_api_v2"
+            pagination_token = None
+            total_fetched = 0
+            while total_fetched < max_results:
+                batch_size = min(100, max_results - total_fetched)
+                if batch_size < 5:
+                    logger.info(f"Skipping final batch for @{username} (batch_size={batch_size} < 5, X API v2 minimum)")
+                    break
+                logger.info(f"Requesting batch: user_id={user_id}, batch_size={batch_size}, pagination_token={pagination_token}")
+                response = self.client.get_users_tweets(
+                    id=user_id,
+                    max_results=batch_size,
+                    tweet_fields=[
+                        'id', 'text', 'created_at', 'author_id', 'public_metrics',
+                        'context_annotations', 'referenced_tweets', 'lang'
+                    ],
+                    exclude=exclusions if exclusions else None,
+                    pagination_token=pagination_token
                 )
-                
-                tweets.append(tweet_data)
-                self._cache_tweet(tweet_data)
-            
-            logger.info(f"Retrieved {len(tweets)} tweets from @{username}")
+                logger.info(f"Raw API response: {response}")
+                if not response or not response.data:
+                    logger.info(f"No more tweets found for user: {username}")
+                    break
+                for tweet in response.data:
+                    public_metrics = tweet.public_metrics if hasattr(tweet, 'public_metrics') else {}
+                    context_annotations = []
+                    if hasattr(tweet, 'context_annotations') and tweet.context_annotations:
+                        context_annotations = [
+                            {
+                                'domain': ann.domain.name if hasattr(ann, 'domain') and ann.domain else None,
+                                'entity': ann.entity.name if hasattr(ann, 'entity') and ann.entity else None
+                            }
+                            for ann in tweet.context_annotations
+                        ]
+                    tweet_data = TweetData(
+                        id=tweet.id,
+                        text=tweet.text,
+                        author_id=tweet.author_id,
+                        author_username=username,
+                        created_at=tweet.created_at,
+                        public_metrics=public_metrics,
+                        context_annotations=context_annotations,
+                        source_api="twitter_api_v2"
+                    )
+                    tweets.append(tweet_data)
+                    self._cache_tweet(tweet_data)
+                total_fetched += len(response.data)
+                pagination_token = response.meta.get('next_token') if hasattr(response, 'meta') and response.meta else None
+                if not pagination_token:
+                    break
+            logger.info(f"Retrieved {len(tweets)} tweets from @{username} (with pagination)")
             return tweets
-            
         except Exception as e:
             logger.error(f"Error getting user tweets for {username}: {e}")
             return []

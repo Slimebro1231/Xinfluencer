@@ -1,0 +1,217 @@
+{
+  "tweet_quality": {
+    "_comment": "Tweet Quality Scoring Configuration - This section defines how we evaluate the quality of tweets for training and evaluation purposes. The quality score combines engagement metrics with semantic relevance to identify high-value content.",
+    "engagement_weights": {
+      "_comment": "Weights for different engagement metrics from Twitter/X API. These determine how much each type of engagement contributes to the overall engagement score. Higher weights mean that metric has more influence on quality assessment.",
+      "_source": "Twitter/X API public_metrics field",
+      "_code_location": "src/evaluation/tweet_quality.py - engagement_score() method",
+      "like_count": 1.0,
+      "_comment_like": "Basic engagement signal - indicates content resonates with audience",
+      "retweet_count": 3.0,
+      "_comment_retweet": "Amplification signal - indicates content is worth sharing (highest weight)",
+      "reply_count": 2.0,
+      "_comment_reply": "Conversation signal - indicates content sparks discussion",
+      "quote_count": 2.0,
+      "_comment_quote": "Commentary signal - indicates content is worth commenting on"
+    },
+    "relevance_weight": 1.0,
+    "_comment_relevance_weight": "How much semantic relevance contributes to quality score vs engagement. 1.0 means equal weight between engagement and relevance. Higher values prioritize relevance over engagement.",
+    "_code_location": "src/evaluation/tweet_quality.py - quality_score() method",
+    "reference_texts": {
+      "_comment": "Example texts that represent high-quality content in our target domains. These are used to calculate semantic similarity and determine if a tweet is relevant to our focus areas.",
+      "_code_location": "src/evaluation/tweet_quality.py - _init_reference_embeddings() method",
+      "gold": [
+        "Gold is going up.",
+        "Bullish on gold.",
+        "Gold is a safe haven.",
+        "Gold protects against inflation.",
+        "Gold is the best store of value.",
+        "Gold price will rise.",
+        "Buy gold.",
+        "Gold tokenization is the future.",
+        "Real World Assets are the next big thing.",
+        "RWA tokenization will revolutionize finance.",
+        "Gold-backed tokens provide stability.",
+        "Physical assets on blockchain."
+      ],
+      "_comment_gold": "Reference texts for gold/RWA (Real World Assets) content - used to identify tweets about gold investment, tokenization, and RWA topics",
+      "btc": [
+        "Bitcoin is going up.",
+        "Bullish on bitcoin.",
+        "Bitcoin is digital gold.",
+        "Bitcoin protects against inflation.",
+        "Bitcoin is the future of money.",
+        "Bitcoin price will rise.",
+        "Buy bitcoin.",
+        "BTC is the ultimate store of value.",
+        "Bitcoin adoption is accelerating.",
+        "Bitcoin halving will drive price.",
+        "Bitcoin ETF approval changes everything.",
+        "Bitcoin is censorship resistant money.",
+        "Bitcoin is the hardest money ever created."
+      ],
+      "_comment_btc": "Reference texts for Bitcoin content - used to identify tweets about Bitcoin investment, adoption, and cryptocurrency topics"
+    },
+    "narrative_phrases": {
+      "_comment": "Key phrases and terms that indicate content is relevant to our target narratives. These are combined with reference texts to create comprehensive relevance scoring.",
+      "_code_location": "src/evaluation/tweet_quality.py - _init_reference_embeddings() method",
+      "btc": [
+        "etf", "treasury", "adoption", "halving", "scarcity", "digital gold", "store of value",
+        "sovereignty", "decentralized", "censorship-resistant", "btc", "bitcoin", "crypto",
+        "blockchain", "mining", "hashrate", "difficulty", "lightning", "layer 2", "ordinals",
+        "inscription", "taproot", "segwit", "mempool", "fee", "satoshi", "hodl", "diamond hands",
+        "bull run", "bear market", "accumulation", "dca", "stacking sats", "orange pill",
+        "bitcoin standard", "sound money", "hard money", "soft money", "fiat", "inflation",
+        "deflation", "monetary policy", "central bank", "federal reserve", "money printer",
+        "quantitative easing", "money supply", "m1", "m2", "velocity", "purchasing power"
+      ],
+      "_comment_btc_phrases": "Bitcoin narrative keywords - terms that indicate Bitcoin-related content",
+      "gold": [
+        "tokenization", "safe haven", "etf", "inflation hedge", "wealth preservation", "gold-backed",
+        "physical asset", "rwa", "real world asset", "liquidity", "gold", "precious metals",
+        "commodities", "bullion", "coins", "bars", "vault", "custody", "allocation", "portfolio",
+        "diversification", "risk management", "wealth storage", "generational wealth", "legacy",
+        "gold standard", "bimetallic", "monetary metal", "industrial use", "jewelry", "electronics",
+        "central bank reserves", "sovereign wealth", "gold mining", "production", "supply",
+        "demand", "premium", "spot price", "futures", "options", "derivatives", "paper gold"
+      ],
+      "_comment_gold_phrases": "Gold/RWA narrative keywords - terms that indicate gold investment and RWA content",
+      "defi_rwa": [
+        "defi", "yield", "rwa", "real world asset", "integration", "liquidity", "protocol", "on-chain",
+        "tokenization", "collateral", "stablecoin", "treasury", "decentralized finance", "amm",
+        "liquidity pool", "yield farming", "staking", "governance", "dao", "smart contract",
+        "oracle", "bridge", "cross-chain", "layer 1", "layer 2", "rollup", "zk", "optimistic",
+        "consensus", "proof of stake", "proof of work", "validator", "node", "miner", "gas",
+        "transaction", "block", "blockchain", "web3", "metaverse", "nft", "fungible", "non-fungible"
+      ],
+      "_comment_defi_phrases": "DeFi/RWA narrative keywords - terms that indicate DeFi and real-world asset integration"
+    },
+    "future_optimism_phrases": [
+      "next cycle", "mass adoption", "future", "bull run", "mainstream", "growth", "expansion",
+      "unlock", "potential", "will be", "is coming", "about to", "set to", "on the horizon", "soon",
+      "emerging", "revolutionary", "transformative", "paradigm shift", "disruption", "innovation",
+      "breakthrough", "milestone", "landmark", "watershed", "turning point", "inflection point",
+      "accelerate", "multiply", "exponential", "hyperbolic", "moon", "rocket", "launch", "takeoff"
+    ],
+    "_comment_future_optimism": "Phrases that indicate forward-looking, optimistic content. Tweets containing these phrases get a 10% boost to their relevance score, as we prioritize future-oriented content.",
+    "_code_location_future_optimism": "src/evaluation/tweet_quality.py - relevance_score() method"
+  },
+  "evaluation": {
+    "_comment": "Evaluation System Configuration - This section defines thresholds and parameters for the evaluation system, including A/B testing and training data selection criteria.",
+    "metrics": {
+      "_comment": "Threshold values for different evaluation metrics. These determine what constitutes 'good' content for different purposes.",
+      "engagement_threshold": 50,
+      "_comment_engagement": "Minimum engagement score required for content to be considered 'high engagement'. Used for filtering and prioritization.",
+      "_code_location": "src/evaluation/tweet_quality.py - evaluate_tweet_for_training() method",
+      "quality_threshold": 0.3,
+      "_comment_quality": "Minimum quality score (0-1) required for content to be considered high quality. Lowered for fresh data analysis.",
+      "_code_location": "src/evaluation/tweet_quality.py - evaluate_tweet_for_training() method",
+      "relevance_threshold": 0.6,
+      "_comment_relevance": "Minimum relevance score (0-1) required for content to be considered relevant to our target domains.",
+      "min_likes": 2,
+      "_comment_min_likes": "Minimum number of likes required for a tweet to be considered for A/B testing. Lowered for fresh data analysis.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - is_suitable_for_ab_testing() method",
+      "min_engagement_rate": 0.001,
+      "_comment_min_engagement_rate": "Minimum engagement rate (0.1%) required for A/B testing. Engagement rate = (likes + retweets + replies) / follower_count.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - is_suitable_for_ab_testing() method",
+      "min_follower_count": 100,
+      "_comment_min_followers": "Minimum follower count for reliable engagement rate calculation. Lowered for fresh data analysis.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - calculate_engagement_score() method"
+    },
+    "ab_testing": {
+      "_comment": "A/B Testing Configuration - Parameters for statistical testing when comparing different models, training approaches, or content strategies.",
+      "_code_location": "src/evaluation/ab_testing.py - ABTestingEngine class",
+      "sample_size": 100,
+      "_comment_sample": "Minimum number of samples required for reliable A/B testing. Larger samples provide more statistical power.",
+      "confidence_level": 0.95,
+      "_comment_confidence": "Statistical confidence level for significance testing. 0.95 means 95% confidence intervals.",
+      "min_effect_size": 0.1,
+      "_comment_effect": "Minimum effect size (Cohen's d) required to consider a difference practically significant. 0.1 = small effect, 0.5 = medium, 0.8 = large."
+    },
+    "training": {
+      "_comment": "Training Data Selection Configuration - Criteria for selecting which content to use for model training and fine-tuning.",
+      "_code_location": "src/evaluation/tweet_quality.py - get_training_candidates() method",
+      "min_quality_score": 0.25,
+      "_comment_min_quality": "Minimum quality score required for content to be used in training. Lowered to work with current data quality.",
+      "min_engagement": 0.1,
+      "_comment_min_engagement": "Minimum engagement score required for training. Lowered to work with current data quality.",
+      "max_training_samples": 10000,
+      "_comment_max_samples": "Maximum number of training samples to collect. Prevents training data from becoming too large and unwieldy."
+    },
+    "engagement_evaluation": {
+      "_comment": "Engagement Evaluation Configuration - Parameters for creating A/B test data from historic tweet engagement metrics.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - EngagementEvaluator class",
+      "min_confidence_threshold": 3.0,
+      "_comment_min_confidence": "Minimum confidence score (1-5) required for A/B comparisons to be included in evaluation data. Higher values mean more reliable comparisons.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - generate_evaluation_data() method",
+      "max_comparisons": 50,
+      "_comment_max_comparisons": "Maximum number of comparisons to generate for evaluation. Limits the size of evaluation datasets.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - generate_evaluation_data() method",
+      "same_author_ratio_threshold": 2.0,
+      "_comment_same_author_ratio": "Minimum engagement ratio required for same-author comparisons. 2.0 means the better tweet must have at least 2x the engagement of the worse tweet.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - find_comparable_tweets() method",
+      "cross_author_ratio_threshold": 1.5,
+      "_comment_cross_author_ratio": "Minimum engagement ratio required for cross-author comparisons. 1.5 means the better tweet must have at least 1.5x the engagement of the worse tweet.",
+      "_code_location": "src/evaluation/engagement_evaluator.py - find_comparable_tweets() method",
+      "speculation_filter_words": [
+        "moon", "pump", "dump", "wen lambo", "to the moon"
+      ],
+      "_comment_speculation_filter": "Words that indicate pure price speculation content. Tweets containing these words are filtered out from A/B testing as they don't represent quality content.",
+      "_code_location_speculation_filter": "src/evaluation/engagement_evaluator.py - is_suitable_for_ab_testing() method"
+    }
+  },
+  "scoring": {
+    "_comment": "Scoring Algorithm Configuration - Technical parameters that control how scores are calculated and normalized.",
+    "_code_location": "src/evaluation/tweet_quality.py - quality_score() method",
+    "engagement_normalization": "logarithmic",
+    "_comment_normalization": "Function used to normalize engagement scores. 'logarithmic' provides better differentiation between high-engagement tweets, 'tanh' provides smooth scaling that prevents extreme values from dominating.",
+    "engagement_scale_factor": 100.0,
+    "_comment_scale": "Factor used in engagement normalization. Higher values make the normalization more gradual, lower values make it more aggressive.",
+    "log_base": 10.0,
+    "_comment_log_base": "Base for logarithmic scaling. Higher values create more differentiation in high-engagement ranges.",
+    "relevance_boost_factor": 1.1,
+    "_comment_boost": "Multiplier applied to relevance score when future optimism phrases are detected. 1.1 = 10% boost.",
+    "max_score": 1.0,
+    "_comment_max": "Maximum possible score value. All scores are capped at this value to maintain consistent 0-1 range.",
+    "engagement_rate_cap": 10.0,
+    "_comment_engagement_cap": "Maximum engagement rate percentage for normalization. Prevents extremely viral content from skewing the scoring system.",
+    "_code_location": "src/evaluation/engagement_evaluator.py - calculate_engagement_score() method",
+    "granularity_levels": {
+      "_comment": "Granular scoring levels for better differentiation between tweet quality",
+      "excellent": 0.9,
+      "very_good": 0.8,
+      "good": 0.7,
+      "above_average": 0.6,
+      "average": 0.5,
+      "below_average": 0.4,
+      "poor": 0.3,
+      "very_poor": 0.2,
+      "excellent_threshold": 0.85,
+      "very_good_threshold": 0.75,
+      "good_threshold": 0.65,
+      "above_average_threshold": 0.55,
+      "average_threshold": 0.45,
+      "below_average_threshold": 0.35,
+      "poor_threshold": 0.25
+    },
+    "_comment_granularity": "Defines quality levels and thresholds for more nuanced scoring and better differentiation between tweets",
+    "semantic_search": {
+      "_comment": "Semantic search configuration for enhanced relevance scoring",
+      "enabled": true,
+      "_comment_enabled": "Whether to use semantic search for relevance scoring. This is the primary method for relevance scoring.",
+      "top_k": 5,
+      "_comment_top_k": "Number of top semantic matches to consider",
+      "similarity_threshold": 0.7,
+      "_comment_similarity_threshold": "Minimum similarity score for semantic matches",
+      "weight": 0.3,
+      "_comment_weight": "Weight of semantic search results in relevance scoring. Reduced when using reference embeddings as primary method.",
+      "hybrid_search_enabled": true,
+      "_comment_hybrid_enabled": "Whether to use hybrid search (dense + sparse) for better results",
+      "cross_encoder_enabled": true,
+      "_comment_cross_encoder": "Whether to use cross-encoder for reranking semantic results",
+
+      "reference_embedding_priority": true,
+      "_comment_reference_priority": "Whether to prioritize reference text embeddings over vector database search"
+    }
+  }
+} 

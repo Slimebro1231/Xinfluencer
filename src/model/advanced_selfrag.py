@@ -3,9 +3,9 @@
 from typing import List, Dict, Optional, Tuple
 import logging
 import re
-from model.generate_h200 import H200TextGenerator
-from vector.hybrid_search import HybridSearch
-from model.cot_rag import ChainOfThoughtRAG
+from src.model.generate_h200 import H200TextGenerator
+from src.vector.hybrid_search import HybridSearch
+from src.model.cot_rag import ChainOfThoughtRAG
 
 logger = logging.getLogger(__name__)
 

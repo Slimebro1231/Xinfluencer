@@ -103,12 +103,18 @@ class ABTestEvaluator:
     
     def generate_response(self, model_path: str, prompt: str, context: Dict = None) -> str:
         """Generate response using specified model."""
-        # TODO: Implement actual model loading and generation
-        # For now, return mock responses
-        if "baseline" in model_path:
-            return f"Baseline response to: {prompt}"
-        else:
-            return f"Experimental response to: {prompt}"
+        # Use actual model generation - no mock responses allowed
+        try:
+            if hasattr(self, 'generator') and self.generator:
+                return self.generator.generate_response(prompt)
+            else:
+                # Initialize proper H200 generator if not available
+                from ..model.generate_h200 import H200TextGenerator
+                generator = H200TextGenerator()
+                return generator.generate_response(prompt)
+        except Exception as e:
+            logger.error(f"Model generation failed for {model_path}: {e}")
+            return f"Error: Model not available. Please ensure training is complete."
     
     def run_full_evaluation(self, num_prompts: int = 10) -> List[EvaluationResult]:
         """Run full evaluation on multiple prompts."""

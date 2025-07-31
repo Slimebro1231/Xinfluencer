@@ -928,70 +928,43 @@ class LoRAFineTuner:
     
     def generate_with_lora(self, prompt: str, max_length: int = 150) -> str:
         """Generate text using LoRA-adapted model with simplified approach."""
-        try:
-            # Use PEFT model if available, otherwise base model
-            model = self.peft_model if self.peft_model is not None else self.base_model
-            model.eval()
-            
-            # Simple tokenization
-            inputs = self.tokenizer(
-                prompt, 
-                return_tensors="pt", 
-                truncation=True, 
-                max_length=512,
-                padding=True
+        # Use PEFT model if available, otherwise base model
+        model = self.peft_model if self.peft_model is not None else self.base_model
+        model.eval()
+        
+        # Simple tokenization
+        inputs = self.tokenizer(
+            prompt, 
+            return_tensors="pt", 
+            truncation=True, 
+            max_length=512,
+            padding=True
+        )
+        
+        # Move to device
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        
+        # Generate using standard approach
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_length,
+                do_sample=True,
+                temperature=0.7,
+                top_p=0.9,
+                pad_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self.tokenizer.eos_token_id,
+                use_cache=True
             )
-            
-            # Move to device
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
-            
-            # Generate using standard approach
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_length,
-                    do_sample=True,
-                    temperature=0.7,
-                    top_p=0.9,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    eos_token_id=self.tokenizer.eos_token_id,
-                    use_cache=True
-                )
-            
-            # Decode response
-            response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            # Remove original prompt
-            if response.startswith(prompt):
-                response = response[len(prompt):].strip()
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"LoRA generation failed: {e}")
-            # Fallback to base model
-            try:
-                with torch.no_grad():
-                    outputs = self.base_model.generate(
-                        **inputs,
-                        max_new_tokens=max_length,
-                        do_sample=True,
-                        temperature=0.7,
-                        top_p=0.9,
-                        pad_token_id=self.tokenizer.eos_token_id,
-                        eos_token_id=self.tokenizer.eos_token_id,
-                        use_cache=True
-                    )
-                
-                response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-                if response.startswith(prompt):
-                    response = response[len(prompt):].strip()
-                
-                return response
-                
-            except Exception as base_error:
-                logger.error(f"Base model generation also failed: {base_error}")
-                return "Generation failed"
+        
+        # Decode response
+        response = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        # Remove original prompt
+        if response.startswith(prompt):
+            response = response[len(prompt):].strip()
+        
+        return response
     
     def generate_soju_tweet(self, topic: str, style: str = "professional") -> str:
         """Generate a Soju-style crypto tweet on a specific topic."""

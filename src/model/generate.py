@@ -233,7 +233,7 @@ class TextGenerator:
         if self.use_lora and self.lora_trainer is not None:
             return self.lora_trainer.generate_soju_tweet(topic, style)
         else:
-            # Fallback to base model with Soju-style prompt
+            # Use base model with Soju-style prompt
             prompts = {
                 "professional": f"As a crypto influencer, write a tweet about {topic}:",
                 "casual": f"As Soju, share your thoughts on {topic}:",
@@ -248,7 +248,7 @@ class TextGenerator:
         if self.use_lora and self.lora_trainer is not None:
             return self.lora_trainer.generate_crypto_content(content_type, topic)
         else:
-            # Fallback to base model
+            # Use base model
             content_prompts = {
                 "tweet": f"As a crypto influencer, write a tweet about {topic}:",
                 "explanation": f"As a crypto educator, explain {topic} to beginners:",

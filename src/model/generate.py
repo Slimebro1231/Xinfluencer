@@ -1,4 +1,4 @@
-"""Text generation using language models optimized for H200 GPU."""
+"""Text generation using language models optimized for H200 GPU with LoRA support."""
 
 from typing import List, Dict, Optional
 import torch
@@ -8,16 +8,39 @@ from huggingface_hub import login
 import logging
 import gc
 
+# Conditional import for LoRA support
+try:
+    from .lora import LoRAFineTuner
+    LORA_AVAILABLE = True
+except ImportError:
+    LORA_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class TextGenerator:
-    """Text generation using causal language models optimized for H200 GPU."""
+    """Text generation using causal language models optimized for H200 GPU with LoRA support."""
     
-    def __init__(self, model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct", use_quantization: bool = True):
-        """Initialize the generation model with H200 optimization."""
+    def __init__(self, model_name: str = "meta-llama/Meta-Llama-3.1-8B-Instruct", use_quantization: bool = True, use_lora: bool = False, lora_adapter_path: str = None):
+        """Initialize the generation model with H200 optimization and optional LoRA support."""
         self.model_name = model_name
         self.use_quantization = use_quantization
+        self.use_lora = use_lora and LORA_AVAILABLE
+        self.lora_adapter_path = lora_adapter_path
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # Initialize LoRA trainer if requested
+        self.lora_trainer = None
+        if self.use_lora and LORA_AVAILABLE:
+            try:
+                self.lora_trainer = LoRAFineTuner(model_name)
+                if lora_adapter_path and os.path.exists(lora_adapter_path):
+                    self.lora_trainer.load_adapter(lora_adapter_path)
+                    logger.info(f"Loaded LoRA adapter from: {lora_adapter_path}")
+                else:
+                    logger.warning("LoRA requested but no valid adapter path provided")
+            except Exception as e:
+                logger.error(f"Failed to initialize LoRA: {e}")
+                self.use_lora = False
         
         # Authenticate with Hugging Face if token is available
         hf_token = os.getenv('HF_TOKEN') or os.getenv('HUGGINGFACE_HUB_TOKEN') or os.getenv('HUGGINGFACE_TOKEN')
@@ -55,15 +78,43 @@ class TextGenerator:
             quantization_config = None
             logger.info("Using full precision model")
         
-        # Load model with optimization
+        # Load model with optimization and RoPE fix
         try:
+            # Fix RoPE scaling configuration for Llama 3.1
+            from transformers import LlamaConfig
+            import json
+            
+            # Load config and fix RoPE scaling before model loading
+            from huggingface_hub import hf_hub_download
+            config_file = hf_hub_download(repo_id=self.model_name, filename="config.json")
+            with open(config_file, 'r') as f:
+                config_dict = json.load(f)
+            
+            # Fix RoPE scaling configuration
+            if 'rope_scaling' in config_dict:
+                config_dict['rope_scaling'] = {"type": "linear", "factor": 2.0}
+                logger.info("Fixed RoPE scaling configuration")
+            
+            # Remove problematic config keys
+            for key in ['bos_token_id', 'eos_token_id']:
+                if key in config_dict:
+                    del config_dict[key]
+                    logger.info(f"Removed problematic config key: {key}")
+            
+            # Create config object
+            config = LlamaConfig.from_dict(config_dict)
+            
+            # Load model with fixed config
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name,
+                config=config,
                 device_map="auto",
                 torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
                 low_cpu_mem_usage=True,
             )
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            logger.info("Successfully loaded model with fixed RoPE config")
+            
         except Exception as e:
             logger.error(f"Failed to load Llama model '{self.model_name}': {e}")
             raise RuntimeError(f"Llama model loading failed: {e}")
@@ -76,7 +127,12 @@ class TextGenerator:
             gc.collect()
     
     def generate_response(self, prompt: str, max_new_tokens: int = 100, temperature: float = 0.7) -> str:
-        """Generate a response to a prompt with H200 optimization."""
+        """Generate a response to a prompt with H200 optimization and optional LoRA support."""
+        # Use LoRA generation if available and enabled
+        if self.use_lora and self.lora_trainer is not None:
+            return self.lora_trainer.generate_with_lora(prompt, max_length=max_new_tokens)
+        
+        # Use base model generation
         try:
             # Tokenize input with truncation
             inputs = self.tokenizer.encode(
@@ -170,4 +226,34 @@ class TextGenerator:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             gc.collect()
-            logger.info("GPU memory cleared") 
+            logger.info("GPU memory cleared")
+    
+    def generate_soju_tweet(self, topic: str, style: str = "professional") -> str:
+        """Generate a Soju-style crypto tweet on a specific topic."""
+        if self.use_lora and self.lora_trainer is not None:
+            return self.lora_trainer.generate_soju_tweet(topic, style)
+        else:
+            # Fallback to base model with Soju-style prompt
+            prompts = {
+                "professional": f"As a crypto influencer, write a tweet about {topic}:",
+                "casual": f"As Soju, share your thoughts on {topic}:",
+                "educational": f"As a crypto educator, explain {topic} to your followers:",
+                "analytical": f"As a crypto analyst, provide insights on {topic}:"
+            }
+            prompt = prompts.get(style, prompts["professional"])
+            return self.generate_response(prompt, max_new_tokens=120)
+    
+    def generate_crypto_content(self, content_type: str, topic: str) -> str:
+        """Generate different types of crypto content."""
+        if self.use_lora and self.lora_trainer is not None:
+            return self.lora_trainer.generate_crypto_content(content_type, topic)
+        else:
+            # Fallback to base model
+            content_prompts = {
+                "tweet": f"As a crypto influencer, write a tweet about {topic}:",
+                "explanation": f"As a crypto educator, explain {topic} to beginners:",
+                "analysis": f"As a crypto analyst, provide analysis on {topic}:",
+                "opinion": f"As a crypto commentator, share your opinion on {topic}:"
+            }
+            prompt = content_prompts.get(content_type, content_prompts["tweet"])
+            return self.generate_response(prompt, max_new_tokens=150) 

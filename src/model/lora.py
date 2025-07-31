@@ -993,6 +993,31 @@ class LoRAFineTuner:
                 logger.error(f"Base model generation also failed: {base_error}")
                 return "Generation failed"
     
+    def generate_soju_tweet(self, topic: str, style: str = "professional") -> str:
+        """Generate a Soju-style crypto tweet on a specific topic."""
+        prompts = {
+            "professional": f"As a crypto influencer, write a tweet about {topic}:",
+            "casual": f"As Soju, share your thoughts on {topic}:",
+            "educational": f"As a crypto educator, explain {topic} to your followers:",
+            "analytical": f"As a crypto analyst, provide insights on {topic}:"
+        }
+        
+        prompt = prompts.get(style, prompts["professional"])
+        return self.generate_with_lora(prompt, max_length=120)
+    
+    def generate_crypto_content(self, content_type: str, topic: str) -> str:
+        """Generate different types of crypto content."""
+        content_prompts = {
+            "tweet": f"As a crypto influencer, write a tweet about {topic}:",
+            "thread": f"As a crypto expert, create a thread about {topic}:",
+            "analysis": f"As a crypto analyst, provide analysis on {topic}:",
+            "explanation": f"As a crypto educator, explain {topic} to beginners:",
+            "opinion": f"As a crypto commentator, share your opinion on {topic}:"
+        }
+        
+        prompt = content_prompts.get(content_type, content_prompts["tweet"])
+        return self.generate_with_lora(prompt, max_length=150)
+    
     def _fix_logits(self, logits):
         """Fix common issues in logits that cause probability tensor corruption."""
         # Replace NaN and Inf values

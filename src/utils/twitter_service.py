@@ -9,7 +9,12 @@ import tweepy
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from config import config_manager
+from src.config import config_manager
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -17,33 +22,54 @@ logger = logging.getLogger(__name__)
 class TwitterService:
     """Twitter service that supports both OAuth 1.0a and OAuth 2.0 authentication."""
     
-    def __init__(self, config: Optional[Any] = None):
+    def __init__(self, config_obj: Optional[Any] = None):
         """Initialize Twitter service with configuration."""
-        self.config = config or config_manager
+        self.config = config_obj or config_manager
         self.client = None
         self.api = None
         self._setup_authentication()
     
+    @property
+    def twitter(self):
+        """Get Twitter configuration from environment variables."""
+        class TwitterConfig:
+            @property
+            def api_key(self): return os.getenv('TWITTER_API_KEY')
+            @property
+            def api_secret(self): return os.getenv('TWITTER_API_SECRET')
+            @property
+            def access_token(self): return os.getenv('TWITTER_ACCESS_TOKEN')
+            @property
+            def access_token_secret(self): return os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+            @property
+            def bearer_token(self): return os.getenv('TWITTER_BEARER_TOKEN')
+            @property
+            def client_id(self): return os.getenv('TWITTER_CLIENT_ID')
+            @property
+            def client_secret(self): return os.getenv('TWITTER_CLIENT_SECRET')
+        
+        return TwitterConfig()
+    
     def _setup_authentication(self):
         """Set up Twitter authentication based on available credentials."""
-        twitter_config = self.config.twitter
+        twitter_config = self.twitter
         
-        # Try OAuth 2.0 first (newer, preferred method)
-        if self._can_use_oauth2():
-            logger.info("Setting up Twitter OAuth 2.0 authentication...")
-            self._setup_oauth2()
-        
-        # Fallback to OAuth 1.0a if OAuth 2.0 not available
-        elif self._can_use_oauth1():
+        # Try OAuth 1.0a first (we have these credentials)
+        if self._can_use_oauth1():
             logger.info("Setting up Twitter OAuth 1.0a authentication...")
             self._setup_oauth1()
+        
+        # Fallback to OAuth 2.0 if OAuth 1.0a not available
+        elif self._can_use_oauth2():
+            logger.info("Setting up Twitter OAuth 2.0 authentication...")
+            self._setup_oauth2()
         
         else:
             logger.warning("No valid Twitter credentials found")
     
     def _can_use_oauth2(self) -> bool:
         """Check if OAuth 2.0 credentials are available."""
-        twitter_config = self.config.twitter
+        twitter_config = self.twitter
         
         # For posting, we need either:
         # 1. Bearer token (for app-only auth, limited functionality)
@@ -55,7 +81,7 @@ class TwitterService:
     
     def _can_use_oauth1(self) -> bool:
         """Check if OAuth 1.0a credentials are available."""
-        twitter_config = self.config.twitter
+        twitter_config = self.twitter
         return bool(
             twitter_config.api_key and 
             twitter_config.api_secret and 
@@ -65,7 +91,7 @@ class TwitterService:
     
     def _setup_oauth2(self):
         """Set up OAuth 2.0 authentication."""
-        twitter_config = self.config.twitter
+        twitter_config = self.twitter
         
         try:
             # For posting tweets, we need the full OAuth 2.0 flow with user context
@@ -112,7 +138,7 @@ class TwitterService:
     
     def _setup_oauth1(self):
         """Set up OAuth 1.0a authentication."""
-        twitter_config = self.config.twitter
+        twitter_config = self.twitter
         
         try:
             # OAuth 1.0a authentication
@@ -263,7 +289,7 @@ class TwitterService:
     
     def get_authentication_status(self) -> Dict[str, Any]:
         """Get current authentication status and available methods."""
-        twitter_config = self.config.twitter
+        twitter_config = self.twitter
         
         return {
             "oauth2_configured": self._can_use_oauth2(),
